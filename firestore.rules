@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Is the caller an admin? Backed by a small `admins/{authUid}` marker
+    // collection (doc just needs to exist) instead of assuming the
+    // member doc ID equals the Auth uid — it never does, since member doc
+    // IDs are auto-generated (README section 4.4) and only linked to an
+    // account via the `authUid` field. The marker doc is created manually
+    // in the Firebase console alongside setting role: "admin" — see
+    // ADMIN_SETUP.md.
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Does `memberId` (a `members` collection doc ID, as stored on
+    // transactions/welfare_requests) belong to the caller? Resolved by
+    // reading that member doc's `authUid` field directly — no reverse
+    // index needed since the doc ID is already known from the resource.
+    function isOwnMemberRecord(memberId) {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/members/$(memberId)).data.authUid == request.auth.uid;
+    }
+
+    // Admin marker collection — only ever managed manually via the Firebase
+    // console (never writable from a client, or being admin would be
+    // self-grantable). isAdmin() above doesn't depend on this read rule:
+    // rules' own get()/exists() calls bypass rules on the referenced path.
+    //
+    // Callers may read exactly one doc — their own — so the app can tell
+    // an admin that their marker doc is missing instead of surfacing an
+    // opaque permission-denied on every action they attempt. Reading only
+    // your own uid leaks nothing: you already know whether you're an admin
+    // by whether anything works.
+    match /admins/{authUid} {
+      allow read: if request.auth != null && request.auth.uid == authUid;
+
+      // Existing admins may promote/demote others from the Members screen.
+      // Writing your own marker is blocked: creating it would let anyone
+      // self-promote, and deleting it lets an admin lock themselves out
+      // (with no way back except the Firebase console). The first admin is
+      // still created by hand — see ADMIN_SETUP.md.
+      allow write: if isAdmin() && request.auth.uid != authUid;
+    }
+
+    // Members collection - read all, write only own.
+    // NOTE: memberId is an auto-generated doc ID (see README section 4.4),
+    // never equal to the Firebase Auth uid — a member's own doc is found via
+    // its `authUid` field instead, so "own record" checks below compare
+    // resource.data.authUid to request.auth.uid, not the doc ID.
+    match /members/{memberId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+
+      allow update: if isAdmin()
+        // Auto-claim (section 4.9, Flow A): only allowed while authUid is
+        // still unset, and only to attach the requester's own uid.
+        || (
+          request.auth != null &&
+          resource.data.authUid == null &&
+          request.resource.data.authUid == request.auth.uid &&
+          request.auth.token.email_verified == true
+        )
+        // Self-edit (profile screen): the already-linked owner may update
+        // their own profile fields, but not role/status/authUid/isClaimed.
+        || (
+          request.auth != null &&
+          resource.data.authUid == request.auth.uid &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.authUid == resource.data.authUid &&
+          request.resource.data.isClaimed == resource.data.isClaimed
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    // Link requests - read for member/admin, write authenticated
+    match /link_requests/{requestId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.requestedByUid == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Notices - read all, write admin only
+    match /notices/{noticeId} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Welfare requests - read own/admin, create own, review admin only
+    match /welfare_requests/{requestId} {
+      allow read: if isOwnMemberRecord(resource.data.memberId) || isAdmin();
+      allow create: if isOwnMemberRecord(request.resource.data.memberId);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Polls - read all, create/delete admin only, update (voting) any member
+    match /polls/{pollId} {
+      allow read: if request.auth != null;
+      allow create: if isAdmin();
+      allow update: if request.auth != null;
+      allow delete: if isAdmin();
+    }
+
+    // Transactions - read own/admin; only admin can log payments/income/expense.
+    // memberId is nullable (null = general association income/expense, not
+    // tied to a member — see models/transaction.dart), so it's checked
+    // before resolving ownership to avoid a get() on a null path.
+    match /transactions/{transactionId} {
+      allow read: if isAdmin()
+        || (resource.data.memberId != null && isOwnMemberRecord(resource.data.memberId));
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

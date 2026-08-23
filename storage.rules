@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAdmin() {
+      return request.auth != null &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    // profile_photos/{memberId}.jpg — uploaded from EditProfileScreen.
+    // Ownership is resolved the same way as the Firestore `members` rule:
+    // the member doc's `authUid` field must match the caller, found by
+    // reading the member doc named by the file (memberId is the part of
+    // the filename before ".jpg").
+    match /profile_photos/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*')
+        && (
+          isAdmin() ||
+          firestore.get(/databases/(default)/documents/members/$(fileName.split('.')[0])).data.authUid == request.auth.uid
+        );
+    }
+
+    // receipts/{transactionId}.pdf — admin-only (logged alongside a
+    // transaction entry); not yet wired into the app UI.
+    match /receipts/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+  }
+}

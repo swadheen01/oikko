@@ -1,0 +1,45 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "memberId", "order": "ASCENDING"},
+        {"fieldPath": "date", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "welfare_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "memberId", "order": "ASCENDING"},
+        {"fieldPath": "submittedAt", "order": "DESCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "link_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "requestedByUid", "order": "ASCENDING"},
+        {"fieldPath": "status", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "isClaimed", "order": "ASCENDING"},
+        {"fieldPath": "name", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "memberCode", "order": "ASCENDING"},
+        {"fieldPath": "isClaimed", "order": "ASCENDING"}
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

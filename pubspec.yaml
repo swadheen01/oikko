@@ -1,0 +1,86 @@
+name: oikko
+description: "Oikko - Bangladesh Teachers Association App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.9.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.0
+  firebase_messaging: ^15.1.5
+
+  # Supabase — used only for file storage (profile photos), since Firebase
+  # Storage now requires the paid Blaze plan even within its free-tier
+  # limits. Auth/Firestore/everything else stays on Firebase.
+  supabase_flutter: ^2.17.2
+
+  # Meeting reminders. FCM can only deliver a push when something sends it;
+  # a "remind me 30 minutes before the meeting" alarm has to be scheduled on
+  # the device itself, which is what this does (no server, no Blaze plan).
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
+
+  # State Management
+  provider: ^6.1.2
+
+  # UI / Fonts
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.15
+
+  # Utilities
+  intl: ^0.19.0
+  image_picker: ^1.1.2
+  url_launcher: ^6.3.1
+  pdf: ^3.11.1
+  path_provider: ^2.1.5
+  connectivity_plus: ^6.1.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher icons, generated from the app logo.
+# Regenerate after changing any of these images with:
+#   dart run flutter_launcher_icons
+#
+# Both are derived from assets/oikko.png, which is white artwork on a blue
+# disc sitting on a white page. The white page is dropped and the blue
+# becomes the icon background instead, so the icon bleeds blue to every edge
+# under any launcher mask shape and no white border can ever appear.
+#
+# icon_app.png        - opaque blue square, white artwork at 78% (iOS
+#                       forbids alpha and rounds the corners itself)
+# icon_foreground.png - just the white artwork on transparency, filling the
+#                       canvas; the generator's 16% inset lands it on
+#                       Android's ~66% adaptive safe zone
+flutter_launcher_icons:
+  image_path: "assets/icon_app.png"
+  android: true
+  adaptive_icon_background: "#31ABFC"
+  adaptive_icon_foreground: "assets/icon_foreground.png"
+  min_sdk_android: 21
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "assets/icon_app.png"
+    background_color: "#31ABFC"
+    theme_color: "#31ABFC"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/oikko.png

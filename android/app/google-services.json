@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "171775047000",
+    "project_id": "oikko-7d8ec",
+    "storage_bucket": "oikko-7d8ec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:171775047000:android:08af152d3d4a833482612d",
+        "android_client_info": {
+          "package_name": "com.example.oikko"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCIjJOn_v3SEytxOYL-Fw5fW8bwA8f8JIM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
