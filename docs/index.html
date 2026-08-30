@@ -5,256 +5,355 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ঐক্য — বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং</title>
 <meta name="description" content="Oikko — Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj. Download the Android app." />
+<meta property="og:title" content="ঐক্য — বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং" />
+<meta property="og:description" content="সদস্য তালিকা, চাঁদা, নোটিশ, ভোট ও রক্তদাতা — সব একসাথে। অ্যাপ ডাউনলোড করুন।" />
+<meta property="og:image" content="logo.png" />
+<meta name="theme-color" content="#0369A1" />
 <link rel="icon" href="logo.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --primary:#0EA5E9; --primary-dark:#0369A1; --primary-deep:#0C4A6E;
-    --accent:#38BDF8; --violet:#6366F1;
-    --ink:#0b1b2b; --muted:#4b5a6b; --line:#dbeafe;
-    --bg:#eaf4fd; --card:#ffffff;
-    --radius:18px;
+    --primary:#0EA5E9; --primary-dark:#0369A1; --primary-deep:#0C2A43;
+    --accent:#38BDF8; --violet:#6366F1; --green:#22c55e;
+    --ink:#0b1b2b; --muted:#516072; --line:#e2effb;
+    --bg:#eef6fe; --card:#ffffff;
+    --glass:rgba(255,255,255,.7);
+    --radius:20px; --shadow:0 18px 46px rgba(3,74,110,.12);
     --font-bn:'Hind Siliguri',system-ui,sans-serif;
-    --font-en:'Poppins',system-ui,sans-serif;
+    --font-en:'Inter','Sora',system-ui,sans-serif;
+    --display:'Sora','Hind Siliguri',system-ui,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0}
-  body{
-    font-family:var(--font-bn);
-    color:var(--ink); background:var(--bg);
-    -webkit-font-smoothing:antialiased;
-  }
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:var(--font-bn);color:var(--ink);background:var(--bg);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden}
   html.lang-en body{font-family:var(--font-en)}
-  /* language switching */
+  h1,h2,h3{font-family:var(--display);letter-spacing:-.01em}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1020px;margin:0 auto;padding:0 22px}
+
+  /* language visibility */
   .en{display:none}
   html.lang-en .bn{display:none}
   html.lang-en .en{display:inline}
-  html.lang-en .en.block{display:block}
+  html.lang-en .en.b{display:block}
 
-  a{color:inherit}
-  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  /* ambient background blobs */
+  .blob{position:fixed;border-radius:50%;filter:blur(70px);opacity:.5;z-index:-1;pointer-events:none}
+  .b1{width:420px;height:420px;background:#7dd3fc;top:-120px;right:-120px}
+  .b2{width:360px;height:360px;background:#c7d2fe;top:40%;left:-140px;opacity:.4}
+  .b3{width:380px;height:380px;background:#a7f3d0;bottom:-140px;right:-100px;opacity:.35}
 
   /* top bar */
-  .topbar{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.82);
-    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  .topbar .wrap{display:flex;align-items:center;gap:12px;height:60px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700}
-  .brand img{width:34px;height:34px;border-radius:9px}
-  .brand b{font-size:18px}
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.72);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:12px;height:64px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800}
+  .brand img{width:36px;height:36px;border-radius:10px;box-shadow:0 4px 12px rgba(3,74,110,.25)}
+  .brand b{font-size:19px;font-family:var(--display)}
   .spacer{flex:1}
-  .langbtn{border:1.5px solid var(--primary);background:#fff;color:var(--primary);
-    font-weight:700;border-radius:999px;padding:7px 14px;cursor:pointer;font-size:14px}
+  .navlinks{display:flex;gap:4px}
+  .navlinks a{padding:8px 13px;border-radius:999px;font-weight:600;font-size:14.5px;color:var(--muted);transition:.15s}
+  .navlinks a:hover{background:rgba(14,165,233,.1);color:var(--primary-dark)}
+  .langbtn{border:1.6px solid var(--primary);background:#fff;color:var(--primary);
+    font-weight:700;border-radius:999px;padding:7px 15px;cursor:pointer;font-size:14px;font-family:inherit}
   .langbtn:hover{background:var(--primary);color:#fff}
 
-  /* hero */
-  .hero{background:
-      radial-gradient(1200px 400px at 80% -10%, rgba(56,189,248,.35), transparent 60%),
-      linear-gradient(160deg,#0EA5E9,#0369A1 55%,#0C2A43);
-    color:#fff;text-align:center;padding:56px 0 64px;position:relative;overflow:hidden}
-  .hero .logo{width:96px;height:96px;border-radius:24px;background:rgba(255,255,255,.14);
-    padding:12px;border:1px solid rgba(255,255,255,.35);margin:0 auto 18px;display:block}
-  .hero h1{margin:0;font-weight:800;font-size:30px;line-height:1.25}
-  .hero .sub{margin:8px auto 0;max-width:640px;font-size:17px;color:rgba(255,255,255,.92);font-weight:500}
-  .hero .tag{margin:6px 0 0;color:rgba(255,255,255,.8)}
+  /* three-dot menu */
+  .menu{position:relative}
+  .dots{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;
+    display:grid;place-items:center;cursor:pointer;color:var(--primary-dark)}
+  .dots:hover{background:rgba(14,165,233,.08)}
+  .dots svg{width:22px;height:22px}
+  .dropdown{position:absolute;right:0;top:52px;min-width:210px;background:#fff;border:1px solid var(--line);
+    border-radius:16px;box-shadow:var(--shadow);padding:8px;opacity:0;transform:translateY(-8px) scale(.98);
+    pointer-events:none;transition:.16s}
+  .menu.open .dropdown{opacity:1;transform:none;pointer-events:auto}
+  .dropdown a{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;font-weight:600;font-size:15px;color:var(--ink)}
+  .dropdown a:hover{background:rgba(14,165,233,.1);color:var(--primary-dark)}
+  .dropdown a svg{width:18px;height:18px;color:var(--primary)}
+  .dropdown .sep{height:1px;background:var(--line);margin:6px 4px}
 
-  .dlwrap{margin-top:30px;display:flex;flex-direction:column;align-items:center;gap:10px}
-  .download{display:inline-flex;align-items:center;gap:12px;
-    background:#22c55e;color:#04310f;font-weight:800;font-size:19px;
-    padding:16px 30px;border-radius:999px;text-decoration:none;
-    box-shadow:0 12px 30px rgba(34,197,94,.45);transition:transform .15s, box-shadow .15s}
-  .download:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(34,197,94,.55)}
+  /* hero */
+  .hero{position:relative;text-align:center;padding:72px 0 84px;color:#fff;
+    background:radial-gradient(1200px 460px at 78% -12%,rgba(56,189,248,.5),transparent 60%),
+      linear-gradient(162deg,#0EA5E9 0%,#0369A1 52%,#0C2A43 100%);
+    border-bottom-left-radius:34px;border-bottom-right-radius:34px;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;background:
+    radial-gradient(600px 240px at 15% 110%,rgba(99,102,241,.4),transparent 60%);pointer-events:none}
+  .hero .logo{width:104px;height:104px;border-radius:28px;background:rgba(255,255,255,.15);
+    padding:14px;border:1px solid rgba(255,255,255,.4);margin:0 auto 20px;display:block;
+    box-shadow:0 20px 46px rgba(0,0,0,.28)}
+  .pill{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
+    color:#eaf6ff;font-weight:600;font-size:13px;padding:6px 14px;border-radius:999px;margin-bottom:16px}
+  .hero h1{margin:0;font-weight:800;font-size:clamp(26px,5vw,38px);line-height:1.2}
+  .hero .sub{margin:10px auto 0;max-width:660px;font-size:clamp(15px,2.6vw,18px);color:rgba(255,255,255,.94);font-weight:600}
+  .hero .tag{margin:8px auto 0;color:rgba(255,255,255,.82);max-width:600px}
+
+  .dlwrap{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:11px}
+  .download{display:inline-flex;align-items:center;gap:13px;background:linear-gradient(180deg,#34d36b,#16a34a);
+    color:#04310f;font-weight:800;font-size:19px;padding:17px 34px;border-radius:999px;
+    box-shadow:0 16px 38px rgba(34,197,94,.5);transition:transform .16s,box-shadow .16s;font-family:inherit}
+  .download:hover{transform:translateY(-3px);box-shadow:0 22px 48px rgba(34,197,94,.6)}
+  .download:active{transform:translateY(-1px)}
   .download svg{width:26px;height:26px}
   .dlnote{font-size:13px;color:rgba(255,255,255,.85)}
 
   /* sections */
-  section{padding:46px 0}
-  h2{font-size:24px;font-weight:800;margin:0 0 8px;color:var(--primary-deep)}
-  .lead{color:var(--muted);font-size:17px;line-height:1.7;margin:0}
+  section{padding:56px 0}
+  .eyebrow{color:var(--primary);font-weight:800;font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+  h2{font-size:clamp(22px,4vw,28px);font-weight:800;margin:6px 0 10px;color:var(--primary-deep)}
+  .lead{color:var(--muted);font-size:17px;line-height:1.75;margin:0;max-width:760px}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:16px;margin-top:26px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:18px;box-shadow:0 8px 24px rgba(3,74,110,.06)}
-  .card .ico{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
-    background:rgba(14,165,233,.12);color:var(--primary);margin-bottom:10px}
-  .card .ico svg{width:22px;height:22px}
-  .card h3{margin:0 0 2px;font-size:16px}
-  .card p{margin:0;color:var(--muted);font-size:13.5px}
+    padding:20px;box-shadow:0 10px 28px rgba(3,74,110,.07);transition:transform .18s,box-shadow .18s}
+  .card:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(3,74,110,.13)}
+  .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;
+    background:linear-gradient(140deg,rgba(14,165,233,.16),rgba(99,102,241,.14));color:var(--primary);margin-bottom:12px}
+  .ico svg{width:23px;height:23px}
+  .card h3{margin:0 0 3px;font-size:16.5px}
+  .card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5}
 
-  .people{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
-  .person{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
-  .person .role{color:var(--primary);font-weight:700;font-size:13px}
-  .person .name{font-weight:700;font-size:17px;margin-top:2px}
-  .person .org{color:var(--muted);font-size:12.5px;margin-top:4px}
+  /* members */
+  .members{background:linear-gradient(180deg,#f3faff,#eef6fe)}
+  .people{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:26px}
+  .person{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px;text-align:center;
+    box-shadow:var(--shadow)}
+  .avatar{width:120px;height:120px;margin:0 auto 14px;border-radius:50%;background:
+    radial-gradient(circle at 50% 30%,#fff,#eaf4fd);border:3px solid #fff;
+    box-shadow:0 12px 30px rgba(3,74,110,.18),0 0 0 1px var(--line);overflow:hidden}
+  .avatar img{width:100%;height:100%;object-fit:cover;object-position:top center}
+  .person .role{color:var(--primary);font-weight:800;font-size:13px;letter-spacing:.03em}
+  .person .name{font-weight:800;font-size:19px;margin-top:3px;font-family:var(--display)}
+  .person .org{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.5}
 
-  .contact{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:20px;display:flex;align-items:center;gap:14px;margin-top:12px}
-  .contact a{color:var(--primary);font-weight:700;text-decoration:none}
+  /* developer */
+  .devcard{position:relative;background:
+      radial-gradient(700px 260px at 85% -20%,rgba(56,189,248,.5),transparent 60%),
+      linear-gradient(160deg,#0EA5E9,#0369A1 55%,#312E81);
+    color:#fff;border-radius:26px;padding:30px;box-shadow:0 26px 60px rgba(12,42,67,.4);overflow:hidden}
+  .devtop{display:flex;align-items:center;gap:18px}
+  .devpic{width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.55);overflow:hidden;
+    box-shadow:0 12px 26px rgba(0,0,0,.3);flex:none}
+  .devpic img{width:100%;height:100%;object-fit:cover;object-position:top center}
+  .devname{font-size:23px;font-weight:800;font-family:var(--display)}
+  .devrole{color:rgba(255,255,255,.8);font-weight:600;margin-top:2px}
+  .edu{margin-top:20px;display:grid;gap:10px}
+  .edu .row{display:flex;align-items:center;gap:12px;font-size:15px}
+  .edu .row .e{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.14);display:grid;place-items:center;flex:none}
+  .edu .row .e svg{width:19px;height:19px}
+  .edu .row b{font-weight:800}
+  .edu .row span{color:rgba(255,255,255,.78)}
+  .socials{margin-top:22px;display:grid;grid-template-columns:repeat(4,1fr);gap:11px}
+  .sbtn{display:flex;flex-direction:column;align-items:center;gap:7px;padding:13px 6px;border-radius:15px;
+    color:#fff;font-weight:700;font-size:12.5px;transition:transform .15s,box-shadow .15s}
+  .sbtn:hover{transform:translateY(-3px)}
+  .sbtn svg{width:22px;height:22px}
+  .sbtn.gh{background:linear-gradient(160deg,#3a4250,#24292e);box-shadow:0 10px 24px rgba(0,0,0,.35)}
+  .sbtn.li{background:linear-gradient(160deg,#378FE9,#0A66C2);box-shadow:0 10px 24px rgba(10,102,194,.45)}
+  .sbtn.fb{background:linear-gradient(160deg,#42A5F5,#1877F2);box-shadow:0 10px 24px rgba(24,119,242,.45)}
+  .sbtn.mail{background:linear-gradient(160deg,#f97362,#ea4335);box-shadow:0 10px 24px rgba(234,67,53,.4)}
+  .callbtn{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+    padding:14px;border-radius:15px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
+    color:#fff;font-weight:800;font-size:15.5px}
+  .callbtn:hover{background:rgba(255,255,255,.22)}
+  .callbtn svg{width:19px;height:19px}
 
-  footer{background:#0b1b2b;color:#cbd7e6;text-align:center;padding:28px 0;font-size:13.5px}
-  footer a{color:#7dd3fc;text-decoration:none}
+  /* contact strip */
+  .contact{background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;display:flex;align-items:center;gap:15px;box-shadow:var(--shadow);margin-top:12px}
+  .contact .e{width:46px;height:46px;border-radius:13px;background:rgba(34,197,94,.14);color:#16a34a;display:grid;place-items:center}
+  .contact a{color:var(--primary-dark);font-weight:800;font-size:18px}
+
+  footer{background:#0b1b2b;color:#c7d5e6;text-align:center;padding:34px 0;font-size:13.5px;margin-top:20px}
+  footer a{color:#7dd3fc}
   .muted{color:var(--muted)}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .6s,transform .6s}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:720px){ .navlinks{display:none} }
   @media(max-width:560px){
-    .hero h1{font-size:24px}.people{grid-template-columns:1fr}
+    .people{grid-template-columns:1fr}
+    .socials{grid-template-columns:repeat(2,1fr)}
+    .devtop{flex-direction:column;text-align:center}
   }
 </style>
 </head>
 <body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 
+<!-- TOP BAR -->
 <div class="topbar">
   <div class="wrap">
-    <div class="brand">
-      <img src="logo.png" alt="Oikko" />
-      <b>
-        <span class="bn">ঐক্য</span>
-        <span class="en">Oikko</span>
-      </b>
-    </div>
+    <a class="brand" href="#top"><img src="logo.png" alt="Oikko" /><b><span class="bn">ঐক্য</span><span class="en">Oikko</span></b></a>
     <div class="spacer"></div>
-    <button class="langbtn" id="langBtn" type="button">
-      <span class="bn">English</span>
-      <span class="en">বাংলা</span>
-    </button>
+    <nav class="navlinks">
+      <a href="#about"><span class="bn">সম্পর্কে</span><span class="en">About</span></a>
+      <a href="#features"><span class="bn">বৈশিষ্ট্য</span><span class="en">Features</span></a>
+      <a href="#committee"><span class="bn">পরিষদ</span><span class="en">Committee</span></a>
+      <a href="#developer"><span class="bn">ডেভেলপার</span><span class="en">Developer</span></a>
+    </nav>
+    <button class="langbtn" id="langBtn" type="button"><span class="bn">English</span><span class="en">বাংলা</span></button>
+    <div class="menu" id="menu">
+      <div class="dots" id="dots" aria-label="Menu"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+      <div class="dropdown">
+        <a href="#top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="bn">হোম</span><span class="en">Home</span></a>
+        <a href="#about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="bn">সম্পর্কে</span><span class="en">About</span></a>
+        <a href="#features"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/></svg><span class="bn">বৈশিষ্ট্য</span><span class="en">Features</span></a>
+        <a href="#committee"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="bn">কার্যনির্বাহী পরিষদ</span><span class="en">Committee</span></a>
+        <a href="#developer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg><span class="bn">ডেভেলপার</span><span class="en">Developer</span></a>
+        <div class="sep"></div>
+        <a href="https://github.com/swadheen01/oikko/releases/latest/download/app-release.apk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span class="bn">অ্যাপ ডাউনলোড</span><span class="en">Download app</span></a>
+      </div>
+    </div>
   </div>
 </div>
 
-<header class="hero">
+<!-- HERO -->
+<header class="hero" id="top">
   <div class="wrap">
     <img class="logo" src="logo.png" alt="Oikko logo" />
-    <h1>
-      <span class="bn">বাংলাদেশ শিক্ষক সমিতি</span>
-      <span class="en">Bangladesh Teachers Association</span>
-    </h1>
-    <p class="sub">
-      <span class="bn">বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span>
-      <span class="en">Baniyachong Upazila Branch, Habiganj</span>
-    </p>
-    <p class="tag">
-      <span class="bn">ঐক্য — সদস্যদের জন্য একটি অভিন্ন প্ল্যাটফর্ম</span>
-      <span class="en">Oikko — one shared platform for our members</span>
-    </p>
-
+    <div class="pill"><span class="bn">শিক্ষকদের নিজস্ব অ্যাপ</span><span class="en">The teachers' own app</span></div>
+    <h1><span class="bn">বাংলাদেশ শিক্ষক সমিতি</span><span class="en">Bangladesh Teachers Association</span></h1>
+    <p class="sub"><span class="bn">বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Baniyachong Upazila Branch, Habiganj</span></p>
+    <p class="tag"><span class="bn">ঐক্য — সদস্যদের জন্য একটি অভিন্ন প্ল্যাটফর্ম</span><span class="en">Oikko — one shared platform for our members</span></p>
     <div class="dlwrap">
       <a class="download" href="https://github.com/swadheen01/oikko/releases/latest/download/app-release.apk">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-        <span class="bn">অ্যাপ ডাউনলোড করুন</span>
-        <span class="en">Download the App</span>
+        <span class="bn">অ্যাপ ডাউনলোড করুন</span><span class="en">Download the App</span>
       </a>
-      <div class="dlnote">
-        <span class="bn">অ্যান্ড্রয়েডের জন্য (APK ফাইল)</span>
-        <span class="en">For Android (APK file)</span>
-      </div>
+      <div class="dlnote"><span class="bn">অ্যান্ড্রয়েডের জন্য (APK ফাইল)</span><span class="en">For Android (APK file)</span></div>
     </div>
   </div>
 </header>
 
-<section>
-  <div class="wrap">
-    <h2><span class="bn">আমাদের সম্পর্কে</span><span class="en">About us</span></h2>
+<!-- ABOUT -->
+<section id="about">
+  <div class="wrap reveal">
+    <div class="eyebrow"><span class="bn">আমাদের সম্পর্কে</span><span class="en">About us</span></div>
+    <h2><span class="bn">একটি প্ল্যাটফর্মে সবাই</span><span class="en">Everyone on one platform</span></h2>
     <p class="lead">
       <span class="bn">ঐক্য অ্যাপের মাধ্যমে বানিয়াচং উপজেলার সকল শিক্ষক একটি প্ল্যাটফর্মে যুক্ত হয়েছেন — সদস্য তালিকা, চাঁদা ও কল্যাণ তহবিলের হিসাব, নোটিশ এবং সিদ্ধান্ত গ্রহণের ভোটিং, সবকিছু একসাথে।</span>
-      <span class="en block">Oikko brings together the teachers of Baniyachong Upazila under one platform — a shared member directory, dues and welfare-fund tracking, notices, and community voting, all in one place.</span>
+      <span class="en b">Oikko brings together the teachers of Baniyachong Upazila under one platform — a shared member directory, dues and welfare-fund tracking, notices, and community voting, all in one place.</span>
     </p>
+  </div>
+</section>
 
+<!-- FEATURES -->
+<section id="features" style="padding-top:10px">
+  <div class="wrap reveal">
+    <div class="eyebrow"><span class="bn">বৈশিষ্ট্য</span><span class="en">Features</span></div>
+    <h2><span class="bn">অ্যাপে যা যা আছে</span><span class="en">What's inside the app</span></h2>
     <div class="grid">
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div>
-        <h3><span class="bn">সদস্য তালিকা</span><span class="en">Member directory</span></h3>
-        <p><span class="bn">বিদ্যালয় ও রক্তের গ্রুপ অনুযায়ী খুঁজুন</span><span class="en">Search by school & blood group</span></p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
-        <h3><span class="bn">চাঁদা ও হিসাব</span><span class="en">Dues & finance</span></h3>
-        <p><span class="bn">নিজের পেমেন্টের হিসাব দেখুন</span><span class="en">See your own statement</span></p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
-        <h3><span class="bn">নোটিশ</span><span class="en">Notices</span></h3>
-        <p><span class="bn">গুরুত্বপূর্ণ ঘোষণা ও সভা</span><span class="en">Announcements & meetings</span></p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></div>
-        <h3><span class="bn">ভোট</span><span class="en">Polls</span></h3>
-        <p><span class="bn">সিদ্ধান্ত গ্রহণে অংশ নিন</span><span class="en">Take part in decisions</span></p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></div>
-        <h3><span class="bn">রক্তদাতা</span><span class="en">Blood donors</span></h3>
-        <p><span class="bn">জরুরি সময়ে দ্রুত রক্তদাতা খুঁজুন</span><span class="en">Find a donor fast</span></p>
-      </div>
-      <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <h3><span class="bn">কার্যনির্বাহী পরিষদ</span><span class="en">Committee</span></h3>
-        <p><span class="bn">সম্পূর্ণ কমিটির তালিকা</span><span class="en">Full committee list</span></p>
-      </div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></div><h3><span class="bn">সদস্য তালিকা</span><span class="en">Member directory</span></h3><p><span class="bn">বিদ্যালয় ও রক্তের গ্রুপ অনুযায়ী খুঁজুন</span><span class="en">Search by school & blood group</span></p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div><h3><span class="bn">চাঁদা ও হিসাব</span><span class="en">Dues & finance</span></h3><p><span class="bn">নিজের পেমেন্টের হিসাব দেখুন</span><span class="en">See your own statement</span></p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><h3><span class="bn">নোটিশ</span><span class="en">Notices</span></h3><p><span class="bn">গুরুত্বপূর্ণ ঘোষণা ও সভা</span><span class="en">Announcements & meetings</span></p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></div><h3><span class="bn">ভোট</span><span class="en">Polls</span></h3><p><span class="bn">সিদ্ধান্ত গ্রহণে অংশ নিন</span><span class="en">Take part in decisions</span></p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></div><h3><span class="bn">রক্তদাতা</span><span class="en">Blood donors</span></h3><p><span class="bn">জরুরি সময়ে দ্রুত রক্তদাতা খুঁজুন</span><span class="en">Find a donor fast</span></p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3><span class="bn">কার্যনির্বাহী পরিষদ</span><span class="en">Committee</span></h3><p><span class="bn">সম্পূর্ণ কমিটির তালিকা</span><span class="en">Full committee list</span></p></div>
     </div>
   </div>
 </section>
 
-<section style="background:#f4faff">
-  <div class="wrap">
-    <h2><span class="bn">কার্যনির্বাহী পরিষদ</span><span class="en">Office bearers</span></h2>
+<!-- COMMITTEE / MEMBERS -->
+<section id="committee" class="members">
+  <div class="wrap reveal">
+    <div class="eyebrow"><span class="bn">কার্যনির্বাহী পরিষদ</span><span class="en">Office bearers</span></div>
+    <h2><span class="bn">নেতৃত্বে</span><span class="en">Leadership</span></h2>
     <div class="people">
       <div class="person">
+        <div class="avatar"><img src="president.png" alt="President" /></div>
         <div class="role"><span class="bn">সভাপতি</span><span class="en">President</span></div>
         <div class="name"><span class="bn">মোঃ আবু তাহের</span><span class="en">Md. Abu Taher</span></div>
-        <div class="org"><span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj</span></div>
+        <div class="org"><span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Bangladesh Teachers Association, Baniyachong Branch, Habiganj</span></div>
       </div>
       <div class="person">
+        <div class="avatar"><img src="secretary.png" alt="General Secretary" /></div>
         <div class="role"><span class="bn">সাধারণ সম্পাদক</span><span class="en">General Secretary</span></div>
         <div class="name"><span class="bn">মোহাম্মদ মোফাজ্জল হোসেন</span><span class="en">Mohammad Mofazzal Hossain</span></div>
-        <div class="org"><span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj</span></div>
+        <div class="org"><span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Bangladesh Teachers Association, Baniyachong Branch, Habiganj</span></div>
       </div>
     </div>
-
     <div class="contact">
-      <div class="ico" style="background:rgba(34,197,94,.14);color:#16a34a"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
-      <div>
-        <div class="muted"><span class="bn">যোগাযোগ</span><span class="en">Contact</span></div>
-        <a href="tel:01722917918">01722 917 918</a>
-      </div>
+      <div class="e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <div><div class="muted"><span class="bn">যোগাযোগ</span><span class="en">Contact</span></div><a href="tel:01722917918">01722 917 918</a></div>
     </div>
   </div>
 </section>
 
-<section style="text-align:center">
-  <div class="wrap">
+<!-- DEVELOPER -->
+<section id="developer">
+  <div class="wrap reveal">
+    <div class="eyebrow"><span class="bn">ডেভেলপার</span><span class="en">Developer</span></div>
+    <h2><span class="bn">যিনি তৈরি করেছেন</span><span class="en">Built by</span></h2>
+    <div class="devcard">
+      <div class="devtop">
+        <div class="devpic"><img src="developer.png" alt="Swadheen Islam Robi" /></div>
+        <div>
+          <div class="devname">Swadheen Islam Robi</div>
+          <div class="devrole"><span class="bn">অ্যাপ ও ওয়েবসাইট ডেভেলপার</span><span class="en">App & Website Developer</span></div>
+        </div>
+      </div>
+      <div class="edu">
+        <div class="row"><div class="e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></div><div><b>Leading University</b> <span>(CSE)</span></div></div>
+        <div class="row"><div class="e"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><b>Baniyachong Adarsha High School</b> <span>(SSC-18)</span></div></div>
+      </div>
+      <div class="socials">
+        <a class="sbtn gh" href="https://github.com/swadheen01" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2A10 10 0 0 0 8.84 21.5c.5.08.66-.22.66-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.16.57.67.48A10 10 0 0 0 12 2z"/></svg>GitHub</a>
+        <a class="sbtn li" href="https://www.linkedin.com/in/swadheen01/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5A2.5 2.5 0 1 0 5 8.5a2.5 2.5 0 0 0-.02-5zM3 9h4v12H3zM9 9h3.8v1.7h.05c.53-1 1.83-2.05 3.76-2.05 4.02 0 4.76 2.65 4.76 6.1V21H20v-5.4c0-1.29-.02-2.95-1.8-2.95-1.8 0-2.08 1.4-2.08 2.85V21H12z"/></svg>LinkedIn</a>
+        <a class="sbtn fb" href="https://www.facebook.com/sherlock.sir1/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>Facebook</a>
+        <a class="sbtn mail" href="mailto:contactwith.swadheen@gmail.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>Email</a>
+      </div>
+      <a class="callbtn" href="tel:01722649634"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="bn">কল করুন</span><span class="en">Call</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="text-align:center;padding-top:10px">
+  <div class="wrap reveal">
     <h2><span class="bn">এখনই শুরু করুন</span><span class="en">Get started</span></h2>
-    <p class="lead" style="margin-bottom:22px"><span class="bn">অ্যাপটি ডাউনলোড করে আপনার সমিতির সাথে যুক্ত হোন।</span><span class="en block">Download the app and connect with your association.</span></p>
+    <p class="lead" style="margin:0 auto 24px"><span class="bn">অ্যাপটি ডাউনলোড করে আপনার সমিতির সাথে যুক্ত হোন।</span><span class="en b">Download the app and connect with your association.</span></p>
     <a class="download" href="https://github.com/swadheen01/oikko/releases/latest/download/app-release.apk">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-      <span class="bn">অ্যাপ ডাউনলোড করুন</span>
-      <span class="en">Download the App</span>
+      <span class="bn">অ্যাপ ডাউনলোড করুন</span><span class="en">Download the App</span>
     </a>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <div>
-      <span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span>
-      <span class="en">Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj</span>
-    </div>
-    <div style="margin-top:8px;opacity:.8">
-      <span class="bn">অ্যাপ ও ওয়েবসাইট তৈরি করেছেন স্বাধীন</span>
-      <span class="en">App & website by Swadheen</span>
-      · <a href="mailto:contactwith.swadheen@gmail.com">contactwith.swadheen@gmail.com</a>
-    </div>
+    <div><span class="bn">বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ</span><span class="en">Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj</span></div>
+    <div style="margin-top:8px;opacity:.82"><span class="bn">অ্যাপ ও ওয়েবসাইট তৈরি করেছেন</span><span class="en">App & website by</span> Swadheen · <a href="mailto:contactwith.swadheen@gmail.com">contactwith.swadheen@gmail.com</a></div>
   </div>
 </footer>
 
 <script>
   (function(){
-    var html=document.documentElement, btn=document.getElementById('langBtn');
-    // remember choice per visitor
-    try{ if(localStorage.getItem('oikko_lang')==='en') html.className='lang-en'; }catch(e){}
-    btn.addEventListener('click',function(){
-      var en = html.classList.toggle('lang-en');
-      if(!en) html.classList.add('lang-bn'); else html.classList.remove('lang-bn');
-      html.lang = en ? 'en' : 'bn';
-      try{ localStorage.setItem('oikko_lang', en?'en':'bn'); }catch(e){}
+    var html=document.documentElement;
+    // language
+    var langBtn=document.getElementById('langBtn');
+    try{ if(localStorage.getItem('oikko_lang')==='en'){html.classList.remove('lang-bn');html.classList.add('lang-en');html.lang='en';} }catch(e){}
+    langBtn.addEventListener('click',function(){
+      var en=html.classList.toggle('lang-en');
+      html.classList.toggle('lang-bn',!en); html.lang=en?'en':'bn';
+      try{localStorage.setItem('oikko_lang',en?'en':'bn');}catch(e){}
     });
+    // three-dot menu
+    var menu=document.getElementById('menu'), dots=document.getElementById('dots');
+    dots.addEventListener('click',function(e){e.stopPropagation();menu.classList.toggle('open');});
+    document.addEventListener('click',function(){menu.classList.remove('open');});
+    menu.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){menu.classList.remove('open');});});
+    // scroll reveal
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target);} });
+    },{threshold:.12});
+    document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
   })();
 </script>
 </body>
