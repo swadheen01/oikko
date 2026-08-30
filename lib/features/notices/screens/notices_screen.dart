@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/services/admin_session.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
@@ -13,12 +14,34 @@ import '../../../widgets/premium_card.dart';
 import '../../../widgets/status_badge.dart';
 import 'notice_detail_screen.dart';
 
-class NoticesScreen extends StatelessWidget {
+class NoticesScreen extends StatefulWidget {
   /// Admins get per-notice delete plus a "clear all" — the notice board is
   /// append-only otherwise, so old or mistaken posts would pile up forever.
   final bool isAdmin;
 
-  const NoticesScreen({super.key, this.isAdmin = false});
+  /// The signed-in member's record id, used to load their private
+  /// notifications inbox (payment confirmations, etc.) shown above the
+  /// public notices. Empty for accounts with no member record.
+  final String memberId;
+
+  const NoticesScreen({super.key, this.isAdmin = false, this.memberId = ''});
+
+  @override
+  State<NoticesScreen> createState() => _NoticesScreenState();
+}
+
+class _NoticesScreenState extends State<NoticesScreen> {
+  final firestoreService = FirestoreService();
+  // Cached once (see HomeScreen): a per-build stream makes StreamBuilder flash
+  // back to empty and resets scroll on every rebuild.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _noticesStream =
+      firestoreService.watchAllNotices();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>? _inboxStream =
+      widget.memberId.isEmpty
+          ? null
+          : firestoreService.watchMemberNotifications(widget.memberId);
+
+  bool get isAdmin => widget.isAdmin;
 
   Future<bool> _confirm(
     BuildContext context, {
@@ -109,8 +132,6 @@ class NoticesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = FirestoreService();
-
     return GradientScaffold(
       body: Padding(
         padding: const EdgeInsets.all(AppDimensions.lg),
@@ -122,7 +143,9 @@ class NoticesScreen extends StatelessWidget {
                 Expanded(
                   child: Text(AppStrings.notices, style: AppTextStyles.h1),
                 ),
-                if (isAdmin)
+                // Same reasoning as the finance clear-all: irreversible
+                // and association-wide, so super admin only.
+                if (isAdmin && AdminSession.isSuperAdmin.value)
                   TextButton.icon(
                     onPressed: () => _deleteAll(context, firestoreService),
                     icon: const Icon(Icons.delete_sweep_rounded, size: 18),
@@ -132,9 +155,10 @@ class NoticesScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppDimensions.lg),
+            _inboxSection(),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: firestoreService.watchAllNotices(),
+                stream: _noticesStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
@@ -313,5 +337,129 @@ class NoticesScreen extends StatelessWidget {
       return LocaleService.isEnglish ? 'Today' : 'আজ';
     }
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  /// The member's private notifications inbox (payment confirmations, etc.),
+  /// shown above the public notices. Renders nothing when the account has no
+  /// member record or an empty inbox.
+  Widget _inboxSection() {
+    if (_inboxStream == null) return const SizedBox.shrink();
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _inboxStream,
+      builder: (context, snapshot) {
+        final docs = [...(snapshot.data?.docs ?? const [])]
+          ..sort((a, b) {
+            final ta = a.data()['createdAt'] as Timestamp?;
+            final tb = b.data()['createdAt'] as Timestamp?;
+            return (tb?.millisecondsSinceEpoch ?? 0)
+                .compareTo(ta?.millisecondsSinceEpoch ?? 0);
+          });
+        if (docs.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.notifications_active_rounded,
+                    size: 16, color: AppColors.accentTeal),
+                const SizedBox(width: 6),
+                Text(
+                  LocaleService.isEnglish ? 'For you' : 'আপনার জন্য',
+                  style: AppTextStyles.overline.copyWith(color: AppColors.accentTeal),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppDimensions.sm),
+            // Capped so a long inbox can't push the notices off-screen; it
+            // scrolls within itself past a few items.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: docs.length,
+                separatorBuilder: (_, __) => const SizedBox(height: AppDimensions.sm),
+                itemBuilder: (context, i) {
+                  final d = docs[i];
+                  final data = d.data();
+                  final ts = data['createdAt'] as Timestamp?;
+                  return _InboxCard(
+                    title: (data['title'] ?? '').toString(),
+                    body: (data['body'] ?? '').toString(),
+                    dateLabel: ts == null ? '' : _formatDate(ts.toDate()),
+                    onDismiss: () => firestoreService.deleteNotification(d.id),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: AppDimensions.lg),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// One private-inbox item (e.g. a payment confirmation), with a dismiss.
+class _InboxCard extends StatelessWidget {
+  final String title;
+  final String body;
+  final String dateLabel;
+  final VoidCallback onDismiss;
+
+  const _InboxCard({
+    required this.title,
+    required this.body,
+    required this.dateLabel,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.md),
+      decoration: BoxDecoration(
+        color: AppColors.accentTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.accentTeal.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.accentTeal.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+            ),
+            child: Icon(Icons.check_circle_rounded, size: 16, color: AppColors.accentTeal),
+          ),
+          const SizedBox(width: AppDimensions.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(body, style: AppTextStyles.bodyMedium),
+                if (dateLabel.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(dateLabel, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                ],
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: onDismiss,
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(Icons.close_rounded, size: 18, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

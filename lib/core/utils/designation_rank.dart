@@ -1,3 +1,5 @@
+import 'bengali_text.dart';
+
 /// Orders members by seniority for the roster, since `designation` is
 /// free text and sorting it alphabetically puts an assistant teacher above
 /// a head teacher.
@@ -11,12 +13,16 @@ class DesignationRank {
   /// Lower comes first. Anything unrecognised sorts last, but still above
   /// members with no designation at all.
   static int of(String designation) {
-    final d = designation.toLowerCase().trim();
+    // Both sides go through BengaliText.key: the roster writes য় as one
+    // character while these keywords may hold য + nukta, and the two are
+    // unequal despite looking the same. Without this, সিনিয়র শিক্ষক missed
+    // its tier and sorted below সহকারী শিক্ষক.
+    final d = BengaliText.key(designation);
     if (d.isEmpty) return 99;
 
     for (var i = 0; i < _tiers.length; i++) {
       for (final keyword in _tiers[i]) {
-        if (d.contains(keyword)) return i;
+        if (d.contains(BengaliText.key(keyword))) return i;
       }
     }
     return 90;
@@ -29,8 +35,10 @@ class DesignationRank {
     ['প্রধান শিক্ষক', 'প্রধান শিক্ষিকা', 'প্রধান', 'head teacher', 'headmaster', 'head master', 'principal'],
     // 2 — Senior teacher.
     ['সিনিয়র', 'জ্যেষ্ঠ', 'senior'],
-    // 3 — Assistant teacher.
-    ['সহকারী শিক্ষক', 'সহকারী শিক্ষিকা', 'সহকারী', 'assistant teacher', 'asst teacher', 'assistant'],
+    // 3 — Assistant teacher. Deliberately not a bare 'সহকারী': that also
+    // matches অফিস সহকারী (office assistant), which is support staff and
+    // was landing among the assistant teachers.
+    ['সহকারী শিক্ষক', 'সহকারী শিক্ষিকা', 'assistant teacher', 'asst teacher'],
     // 4 — Any other teaching role.
     ['শিক্ষক', 'শিক্ষিকা', 'teacher'],
   ];
@@ -49,5 +57,39 @@ class DesignationRank {
     final byRank = sortKey(designationA).compareTo(sortKey(designationB));
     if (byRank != 0) return byRank;
     return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+  }
+
+  /// Groups members by school, each school's staff ordered by seniority.
+  ///
+  /// Schools are ordered largest first, so the main institutions lead the
+  /// list; members with no school recorded are collected under [noSchool]
+  /// at the end rather than forming a blank-titled group.
+  static List<MapEntry<String, List<T>>> groupBySchool<T>(
+    List<T> members, {
+    required String Function(T) school,
+    required String Function(T) designation,
+    required String Function(T) name,
+    required String noSchool,
+  }) {
+    final groups = <String, List<T>>{};
+    for (final m in members) {
+      final key = school(m).trim().isEmpty ? noSchool : school(m).trim();
+      groups.putIfAbsent(key, () => []).add(m);
+    }
+
+    for (final list in groups.values) {
+      list.sort((a, b) => compare(
+            designation(a), name(a), designation(b), name(b),
+          ));
+    }
+
+    final entries = groups.entries.toList()
+      ..sort((a, b) {
+        if (a.key == noSchool) return 1;
+        if (b.key == noSchool) return -1;
+        final bySize = b.value.length.compareTo(a.value.length);
+        return bySize != 0 ? bySize : a.key.compareTo(b.key);
+      });
+    return entries;
   }
 }

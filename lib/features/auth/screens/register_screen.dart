@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_dimensions.dart';
+import '../../../core/locale/locale_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/utils/validators.dart';
@@ -32,6 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
@@ -190,12 +193,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: AppDimensions.md),
               TextFormField(
                 controller: _passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword,
                 decoration: InputDecoration(
                   hintText: AppStrings.passwordHint,
                   prefixIcon: Icon(
                     Icons.lock_rounded,
                     color: AppColors.primary,
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
                 validator: Validators.password,
@@ -203,12 +213,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: AppDimensions.md),
               TextFormField(
                 controller: _confirmPasswordController,
-                obscureText: true,
+                obscureText: _obscureConfirm,
                 decoration: InputDecoration(
                   hintText: AppStrings.confirmPasswordHint,
                   prefixIcon: Icon(
                     Icons.lock_rounded,
                     color: AppColors.primary,
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                    icon: Icon(
+                      _obscureConfirm ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
                 validator: Validators.password,
@@ -222,6 +239,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ],
+              const SizedBox(height: AppDimensions.md),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppDimensions.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                ),
+                child: Text(
+                  LocaleService.isEnglish
+                      ? '⚠️ A verification email will be sent — check your Spam / Junk folder for the link.'
+                      : '⚠️ একটি ভেরিফিকেশন ইমেইল পাঠানো হবে — লিংকের জন্য আপনার স্প্যাম / জাঙ্ক ফোল্ডার দেখুন।',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
               const SizedBox(height: AppDimensions.lg),
               GradientButton(
                 label: AppStrings.register,

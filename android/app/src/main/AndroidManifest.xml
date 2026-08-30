@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
-        android:label="oikko"
+        android:label="Oikko"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -84,6 +84,10 @@
         <intent>
             <action android:name="android.intent.action.DIAL"/>
             <data android:scheme="tel"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

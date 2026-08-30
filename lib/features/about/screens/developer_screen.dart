@@ -71,27 +71,46 @@ class DeveloperScreen extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          width: 62,
-                          height: 62,
+                          width: 72,
+                          height: 72,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6366F1), Color(0xFF14B8A6)],
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 12,
-                                offset: const Offset(0, 6),
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 14,
+                                offset: const Offset(0, 7),
                               ),
                             ],
                           ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            'S',
-                            style: AppTextStyles.h1.copyWith(
-                              color: Colors.white,
-                              fontSize: 30,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/developer_face.png',
+                              fit: BoxFit.cover,
+                              // The source is portrait, so a centred cover
+                              // crop would frame the shirt and cut the head
+                              // off; anchoring to the top keeps the face.
+                              alignment: Alignment.topCenter,
+                              // Decoded at display size — the asset is far
+                              // larger than the 72px circle it fills.
+                              cacheWidth: 256,
+                              // A missing asset would otherwise crash the
+                              // page; fall back to the initial instead.
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'S',
+                                  style: AppTextStyles.h1.copyWith(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -132,6 +151,39 @@ class DeveloperScreen extends StatelessWidget {
                       name: 'Baniyachong Adarsha High School',
                       detail: 'SSC-18',
                     ),
+                    const SizedBox(height: AppDimensions.sm),
+                    InkWell(
+                      onTap: () => _launch('mailto:contactwith.swadheen@gmail.com'),
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                            ),
+                            child: const Icon(
+                              Icons.mail_rounded,
+                              color: Colors.white,
+                              size: AppDimensions.iconSm,
+                            ),
+                          ),
+                          const SizedBox(width: AppDimensions.md),
+                          Expanded(
+                            child: Text(
+                              'contactwith.swadheen@gmail.com',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: AppDimensions.lg),
                     Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
                     const SizedBox(height: AppDimensions.md),
@@ -167,6 +219,37 @@ class DeveloperScreen extends StatelessWidget {
                           onTap: () => _launch('https://www.facebook.com/sherlock.sir1/'),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: AppDimensions.md),
+                    // Full-width row of its own rather than a fourth button:
+                    // four across the row left the labels cramped. The
+                    // number stays hidden — tapping hands it to the dialer.
+                    InkWell(
+                      onTap: () => _launch('tel:01722649634'),
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.call_rounded, color: Colors.white, size: 18),
+                            const SizedBox(width: AppDimensions.sm),
+                            Text(
+                              isEn ? 'Call' : 'কল করুন',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),

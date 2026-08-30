@@ -13,7 +13,9 @@ import '../../../widgets/gradient_scaffold.dart';
 import '../../about/screens/about_screen.dart';
 import '../../account_linking/widgets/sync_payment_card.dart';
 import '../../directory/widgets/member_card.dart';
+import '../../directory/widgets/school_filter_field.dart';
 import '../../directory/screens/member_profile_screen.dart';
+import '../../directory/screens/members_directory_screen.dart';
 
 /// The app's landing page (first tab): a condensed "about the association"
 /// card, a "sync payment info" banner (only shown until the member's
@@ -46,16 +48,39 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _firestoreService = FirestoreService();
+  // Created once, not in build(): a fresh stream on every rebuild would make
+  // StreamBuilder flash back to its empty/waiting state (member count 0 → 400)
+  // and rebuild the list from scratch, throwing scroll back to the top every
+  // time the widget rebuilds (e.g. when AuthWrapper's member doc stream ticks).
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
+      _firestoreService.watchAllMembers();
   final _searchController = TextEditingController();
   String _query = '';
   String? _bloodGroupFilter;
+  String? _schoolFilter;
 
   static const _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+  /// The home tab is a landing page, not the full roster — it shows only a
+  /// handful of members with a "view all" link to the Members directory.
+  static const _previewLimit = 8;
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// School -> approved-member count, for the picker.
+  static Map<String, int> _schoolCounts(List<Member> members) {
+    final counts = <String, int>{};
+    for (final m in members) {
+      if (!m.isApproved) continue;
+      final s = m.schoolName.trim();
+      if (s.isEmpty) continue;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
   }
 
   List<Member> _filter(List<Member> members) {
@@ -64,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
           m.name.toLowerCase().contains(_query.toLowerCase()) ||
           m.schoolName.toLowerCase().contains(_query.toLowerCase());
       final matchesBlood = _bloodGroupFilter == null || m.bloodGroup == _bloodGroupFilter;
-      return matchesQuery && matchesBlood && m.isApproved;
+      final matchesSchool = _schoolFilter == null || m.schoolName.trim() == _schoolFilter;
+      return matchesQuery && matchesBlood && matchesSchool && m.isApproved;
     }).toList();
 
     result.sort((a, b) => DesignationRank.compare(
@@ -77,7 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return GradientScaffold(
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _firestoreService.watchAllMembers(),
+        stream: _membersStream,
         builder: (context, snapshot) {
           final members = (snapshot.data?.docs ?? []).map(Member.fromDoc).toList();
           final approvedCount = members.where((m) => m.isApproved).length;
@@ -119,6 +145,17 @@ class _HomeScreenState extends State<HomeScreen> {
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
                 sliver: SliverToBoxAdapter(
+                  child: SchoolFilterField(
+                    counts: _schoolCounts(members),
+                    selected: _schoolFilter,
+                    onChanged: (s) => setState(() => _schoolFilter = s),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(child: const SizedBox(height: AppDimensions.sm)),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
+                sliver: SliverToBoxAdapter(
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) => setState(() => _query = value),
@@ -151,6 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: _FilterChip(
                               label: bg,
                               icon: Icons.bloodtype_rounded,
+                              iconColor: AppColors.danger,
                               isSelected: _bloodGroupFilter == bg,
                               onTap: () => setState(() => _bloodGroupFilter = bg),
                             ),
@@ -180,10 +218,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 )
-              else
+              else ...[
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
-                    AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.xl,
+                    AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.sm,
                   ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
@@ -198,10 +236,45 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      childCount: filtered.length,
+                      // Only a preview on the home tab; the full roster lives
+                      // on the Members directory, reached via the button below.
+                      childCount: filtered.length > _previewLimit
+                          ? _previewLimit
+                          : filtered.length,
                     ),
                   ),
                 ),
+                if (filtered.length > _previewLimit)
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.md,
+                    ),
+                    sliver: SliverToBoxAdapter(
+                      child: _ViewAllMembersButton(total: filtered.length),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: const SizedBox(height: AppDimensions.md),
+                  ),
+                // Ownership line — home page only, sitting under the member
+                // preview / "view all" button.
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimensions.lg, AppDimensions.sm, AppDimensions.lg, AppDimensions.xl,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Text(
+                      AppStrings.associationFooter,
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           );
         },
@@ -255,7 +328,7 @@ class _AboutCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                isEn ? 'Baniyachong Upazila Teachers Association' : 'বানিয়াচং উপজেলা শিক্ষক সমিতি',
+                AppStrings.associationName,
                 style: AppTextStyles.h2.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 6),
@@ -306,17 +379,70 @@ class _AboutCard extends StatelessWidget {
   }
 }
 
+/// "See the whole roster" link at the end of the home tab's member preview.
+/// Opens the full Members directory, which has its own search and school
+/// filter, rather than expanding an ever-growing list on the landing page.
+class _ViewAllMembersButton extends StatelessWidget {
+  final int total;
+  const _ViewAllMembersButton({required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = LocaleService.isEnglish;
+    return Material(
+      color: AppColors.primary.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const MembersDirectoryScreen()),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.md, vertical: 14,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.groups_rounded, size: 18, color: AppColors.primary),
+              const SizedBox(width: AppDimensions.sm),
+              Text(
+                isEn ? 'View all $total members' : 'সব $total জন সদস্য দেখুন',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _FilterChip extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
 
+  /// Tint for the leading icon when the chip is unselected — used to give
+  /// the blood-group chips a red droplet so they read as "blood" at a glance.
+  final Color? iconColor;
+
   const _FilterChip({
     required this.label,
     required this.icon,
     required this.isSelected,
     required this.onTap,
+    this.iconColor,
   });
 
   @override
@@ -338,7 +464,7 @@ class _FilterChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary),
+            Icon(icon, size: 14, color: isSelected ? AppColors.textOnPrimary : (iconColor ?? AppColors.textSecondary)),
             const SizedBox(width: 5),
             Text(
               label,

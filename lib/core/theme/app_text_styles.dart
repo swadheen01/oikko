@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Text styles using Hind Siliguri — a clean font with full Bangla + Latin support.
+/// Text styles using Kalpurush — the Bengali face this association is used
+/// to reading. It's bundled from `assets/fonts/` rather than fetched from
+/// Google Fonts, which doesn't carry it.
+///
+/// Note the app is Bengali-first, so the Bengali face wins where the two
+/// scripts disagree; Kalpurush carries its own Latin and digit glyphs, with
+/// Roboto listed only as a fallback for anything it lacks (rare symbols,
+/// other scripts).
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle _base = GoogleFonts.hindSiliguri();
+  static const TextStyle _base = TextStyle(
+    fontFamily: 'Kalpurush',
+    fontFamilyFallback: ['Roboto'],
+  );
 
   /// Large hero headline — splash screen, hero balance labels.
   static TextStyle get display => _base.copyWith(

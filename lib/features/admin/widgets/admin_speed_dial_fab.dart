@@ -50,17 +50,11 @@ class _AdminSpeedDialFabState extends State<AdminSpeedDialFab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
+              // Ordered by how often each is used: payments and expenses
+              // are logged constantly, members only when someone joins.
+              // "Members" itself isn't here — it has its own tab, so
+              // listing it again would be a second door to the same room.
               children: [
-                // "Members" used to live here; it has its own tab now, so
-                // listing it again would just be a second door to the same
-                // room.
-                _MiniAction(
-                  label: AppStrings.addMember,
-                  icon: Icons.person_add_rounded,
-                  color: AppColors.accentViolet,
-                  onTap: () => _select(const AddMemberScreen()),
-                ),
-                const SizedBox(height: AppDimensions.sm),
                 _MiniAction(
                   label: AppStrings.addPayment,
                   icon: Icons.payments_rounded,
@@ -73,6 +67,13 @@ class _AdminSpeedDialFabState extends State<AdminSpeedDialFab> {
                   icon: Icons.receipt_long_rounded,
                   color: AppColors.danger,
                   onTap: () => _select(const AddExpenseScreen()),
+                ),
+                const SizedBox(height: AppDimensions.sm),
+                _MiniAction(
+                  label: AppStrings.addMember,
+                  icon: Icons.person_add_rounded,
+                  color: AppColors.accentViolet,
+                  onTap: () => _select(const AddMemberScreen()),
                 ),
               ],
             ),

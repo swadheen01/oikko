@@ -1,6 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/firestore_paths.dart';
 
+/// Outcome of a roster import: how many records were created, and how many
+/// were left alone because that person was already in the database.
+class ImportResult {
+  final int imported;
+  final int skipped;
+
+  const ImportResult({required this.imported, required this.skipped});
+}
+
 /// Central Firestore access layer. Implements the member auto-match /
 /// link-request logic from planning doc section 4.9, plus generic
 /// CRUD helpers reused by every feature module.
@@ -39,6 +48,51 @@ class FirestoreService {
 
   /// Creates a brand-new pending member record for a first-time user
   /// with no pre-existing admin entry (fallback of Flow A).
+  /// Whether any member record is already linked to this login. Used after a
+  /// Google sign-in to decide between "returning user" (do nothing) and
+  /// "first time" (create a prefilled record).
+  Future<bool> hasMemberForAuthUid(String authUid) async {
+    if (authUid.isEmpty) return false;
+    final snap = await _db
+        .collection(FirestorePaths.members)
+        .where('authUid', isEqualTo: authUid)
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  }
+
+  /// Creates a member record from a first-time Google sign-in, prefilled with
+  /// what Google provides (name, email, photo). The rest (phone, school,
+  /// designation, blood group) is left blank for the member to complete via
+  /// Edit Profile. `status: pending` mirrors the email-signup flow.
+  Future<void> createGoogleMember({
+    required String authUid,
+    required String name,
+    required String email,
+    String photoUrl = '',
+  }) {
+    return _db.collection(FirestorePaths.members).add({
+      'name': name,
+      'nameEnglish': name,
+      'name_en': name,
+      'phone': '',
+      'authUid': authUid,
+      'isClaimed': true,
+      'role': 'member',
+      'status': 'pending',
+      'photoUrl': photoUrl,
+      'designation': '',
+      'schoolName': '',
+      'bloodGroup': '',
+      'qualification': '',
+      'email': email,
+      // Routes them to the profile-setup screen on first sign-in; cleared on
+      // their first profile save.
+      'needsProfileSetup': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> createPendingMember({
     required String authUid,
     required String phone,
@@ -186,6 +240,77 @@ class FirestoreService {
         .count()
         .get();
     return snapshot.count ?? 0;
+  }
+
+  /// Bulk-creates member records from the association's own roster.
+  ///
+  /// Each record gets a `memberCode` derived from its pre-allocated
+  /// document ID, exactly as `createMemberByAdmin` does \u2014 so IDs stay
+  /// unique without any collision check.
+  ///
+  /// Records already present are skipped rather than duplicated: a member
+  /// is considered the same person if their name and school both match an
+  /// existing record. That makes the import safe to re-run if it's
+  /// interrupted part-way, which matters when writing hundreds of rows.
+  ///
+  /// [onProgress] reports (written, total) so the UI can show a bar.
+  Future<ImportResult> importMembers(
+    List<Map<String, String>> rows, {
+    void Function(int written, int total)? onProgress,
+  }) async {
+    final existing = await _db.collection(FirestorePaths.members).get();
+    final seen = <String>{
+      for (final doc in existing.docs)
+        '${(doc.data()['name'] ?? '').toString().trim()}|'
+        '${(doc.data()['schoolName'] ?? '').toString().trim()}',
+    };
+
+    final pending = <Map<String, String>>[];
+    var skipped = 0;
+    for (final row in rows) {
+      final key = '${row['name']?.trim()}|${row['school']?.trim()}';
+      if (seen.contains(key)) {
+        skipped++;
+        continue;
+      }
+      seen.add(key);
+      pending.add(row);
+    }
+
+    const chunkSize = 200; // well under Firestore's 500-write batch limit
+    var written = 0;
+    for (var start = 0; start < pending.length; start += chunkSize) {
+      final chunk = pending.skip(start).take(chunkSize).toList();
+      final batch = _db.batch();
+
+      for (final row in chunk) {
+        final docRef = _db.collection(FirestorePaths.members).doc();
+        batch.set(docRef, {
+          'name': row['name'] ?? '',
+          'nameEnglish': '',
+          'name_en': '',
+          'phone': row['phone'] ?? '',
+          'schoolName': row['school'] ?? '',
+          'designation': row['designation'] ?? '',
+          'qualification': '',
+          'bloodGroup': '',
+          'email': '',
+          'photoUrl': '',
+          'role': 'member',
+          'status': 'approved', // roster entries are pre-vetted
+          'authUid': null,
+          'isClaimed': false,
+          'memberCode': docRef.id.substring(0, 6).toUpperCase(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+      written += chunk.length;
+      onProgress?.call(written, pending.length);
+    }
+
+    return ImportResult(imported: written, skipped: skipped);
   }
 
   /// The code-entry counterpart to `searchUnclaimedByName` \u2014 looks up a
@@ -496,6 +621,91 @@ class FirestoreService {
       'votes': votes,
       'voterIds': voterIds,
     });
+  }
+
+  /// Admin action: end voting now by setting closesAt to the current time.
+  /// The poll and its result stay visible; only the vote button goes away.
+  Future<void> closePoll(String pollId) {
+    return _db.collection(FirestorePaths.polls).doc(pollId).update({
+      'isActive': false,
+      'closesAt': Timestamp.now(),
+    });
+  }
+
+  /// Admin action: remove a poll entirely, result and all.
+  Future<void> deletePoll(String pollId) {
+    return _db.collection(FirestorePaths.polls).doc(pollId).delete();
+  }
+
+  // ---------------- PERSONAL NOTIFICATIONS ----------------
+
+  /// Writes a private notification into `memberId`'s inbox (e.g. a payment
+  /// confirmation). Stored so it persists in-app, not just as a transient
+  /// push. `authUid` is denormalized on the doc so the read rule can match
+  /// the recipient directly without a lookup.
+  Future<void> addMemberNotification({
+    required String memberId,
+    String? authUid,
+    required String title,
+    required String body,
+    String type = 'general',
+  }) {
+    return _db.collection(FirestorePaths.notifications).add({
+      'memberId': memberId,
+      'authUid': authUid,
+      'title': title,
+      'body': body,
+      'type': type,
+      'createdAt': FieldValue.serverTimestamp(),
+      'read': false,
+    });
+  }
+
+  /// The caller's own inbox. Equality-only (no orderBy) so it needs no
+  /// composite index; callers sort by `createdAt` client-side.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchMemberNotifications(String memberId) {
+    return _db
+        .collection(FirestorePaths.notifications)
+        .where('memberId', isEqualTo: memberId)
+        .snapshots();
+  }
+
+  Future<void> deleteNotification(String id) {
+    return _db.collection(FirestorePaths.notifications).doc(id).delete();
+  }
+
+  /// Marks all of a member's unread notifications as read — called when they
+  /// open the Notices tab, so the "new notification" badge clears. Filters
+  /// `read` client-side (single equality query) to avoid a composite index.
+  Future<void> markMemberNotificationsRead(String memberId) async {
+    if (memberId.isEmpty) return;
+    final snap = await _db
+        .collection(FirestorePaths.notifications)
+        .where('memberId', isEqualTo: memberId)
+        .get();
+    final unread = snap.docs.where((d) => d.data()['read'] != true).toList();
+    if (unread.isEmpty) return;
+    final batch = _db.batch();
+    for (final d in unread) {
+      batch.update(d.reference, {'read': true});
+    }
+    await batch.commit();
+  }
+
+  /// Resolves an Auth uid to the member's name. Notices store the poster's
+  /// uid, so the detail view uses this to show a name instead of a raw id.
+  /// Returns null when no member is linked to that uid (e.g. a super admin
+  /// with no member record).
+  Future<String?> memberNameByAuthUid(String authUid) async {
+    if (authUid.isEmpty) return null;
+    final snap = await _db
+        .collection(FirestorePaths.members)
+        .where('authUid', isEqualTo: authUid)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    final name = (snap.docs.first.data()['name'] as String?)?.trim();
+    return (name == null || name.isEmpty) ? null : name;
   }
 
   // ---------------- GENERIC HELPERS ----------------

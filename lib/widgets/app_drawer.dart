@@ -10,6 +10,7 @@ import '../core/utils/app_snackbar.dart';
 import '../core/theme/theme_service.dart';
 import '../features/about/screens/about_screen.dart';
 import '../features/about/screens/developer_screen.dart';
+import '../features/directory/screens/blood_donors_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../models/member.dart';
 
@@ -119,6 +120,17 @@ class AppDrawer extends StatelessWidget {
                         );
                       },
                     ),
+                  _DrawerTile(
+                    icon: Icons.bloodtype_rounded,
+                    label: LocaleService.isEnglish ? 'Blood donors' : 'রক্তদাতা',
+                    color: AppColors.danger,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BloodDonorsScreen()),
+                      );
+                    },
+                  ),
                   _DrawerTile(
                     icon: Icons.info_rounded,
                     label: AppStrings.about,
@@ -332,6 +344,9 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
+/// Language switch, styled to match the theme switch (_ThemeTile): a ListTile
+/// with a leading icon, the current language as its title, and a Switch. The
+/// switch is on for English, off for বাংলা.
 class _LanguageTile extends StatelessWidget {
   const _LanguageTile();
 
@@ -342,7 +357,9 @@ class _LanguageTile extends StatelessWidget {
       builder: (context, value, _) {
         final isEn = value == Language.en;
         return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg, vertical: 2),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.lg, vertical: 2,
+          ),
           leading: Container(
             width: 38,
             height: 38,
@@ -354,20 +371,13 @@ class _LanguageTile extends StatelessWidget {
             child: Icon(Icons.translate_rounded, color: AppColors.accentTeal, size: 20),
           ),
           title: Text(
-            AppStrings.language,
+            isEn ? 'English' : 'বাংলা',
             style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600),
           ),
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              isEn ? 'EN' : 'বাংলা',
-              style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
-            ),
+          trailing: Switch(
+            value: isEn,
+            activeThumbColor: AppColors.accentTeal,
+            onChanged: (_) => LocaleService.toggle(),
           ),
           onTap: () => LocaleService.toggle(),
         );

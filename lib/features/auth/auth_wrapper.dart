@@ -5,12 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/firestore_paths.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/admin_session.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/services/meeting_reminder_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../models/member.dart';
 import '../admin/admin_shell.dart';
 import '../home/home_shell.dart';
+import '../profile/screens/edit_profile_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/email_verification_screen.dart';
@@ -33,6 +35,24 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _notificationService = NotificationService();
   bool _justVerified = false;
   String? _tokenRegisteredForMemberId;
+
+  // Streams cached, not created in build(). A fresh stream on every rebuild
+  // snaps its StreamBuilder back to the "waiting" state, which here renders
+  // SplashScreen for a frame — that destroys and rebuilds the whole shell,
+  // throwing the user back to the Home tab and re-loading everything. That's
+  // exactly what happens on a real device when the member doc changes (e.g.
+  // right after login, when the FCM token is written to it).
+  late final Stream<User?> _authStream = _authService.authStateChanges;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _memberStream;
+  String? _memberStreamUid;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _memberDocs(String uid) {
+    if (_memberStreamUid != uid || _memberStream == null) {
+      _memberStreamUid = uid;
+      _memberStream = _firestoreService.watchMemberByAuthUid(uid);
+    }
+    return _memberStream!;
+  }
 
   /// Registers this device's FCM token against the member doc and
   /// subscribes it to that member's personal topic, once per member (not
@@ -73,7 +93,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     return StreamBuilder<User?>(
-      stream: _authService.authStateChanges,
+      stream: _authStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SplashScreen();
@@ -82,7 +102,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
         final user = snapshot.data;
         if (user == null) {
           _justVerified = false;
-          return const LoginScreen();
+          _tokenRegisteredForMemberId = null;
+          _memberStream = null;
+          _memberStreamUid = null;
+          AdminSession.clear();
+          // Not const: a const instance is canonicalised, so it wouldn't
+          // rebuild when the app re-renders on a language change and the
+          // login page would stay in the old language.
+          // ignore: prefer_const_constructors
+          return LoginScreen();
         }
 
         if (!user.emailVerified && !_justVerified) {
@@ -92,40 +120,84 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _firestoreService.watchMemberByAuthUid(user.uid),
+          stream: _memberDocs(user.uid),
           builder: (context, memberSnapshot) {
-            if (memberSnapshot.connectionState == ConnectionState.waiting) {
-              return const SplashScreen();
+            // A lighter loader than the launch splash for the brief post-login
+            // wait. Only on the very first load — once we have data, keep the
+            // shell mounted through any transient "waiting" so it's never torn
+            // down (which would reset the tab and scroll).
+            if (memberSnapshot.connectionState == ConnectionState.waiting &&
+                !memberSnapshot.hasData) {
+              return const AuthLoadingView();
             }
             final docs = memberSnapshot.data?.docs ?? [];
 
-            // Not linked to a member record yet. Rather than locking the
-            // app behind the linking screen, run the normal member shell
-            // with a placeholder profile: the directory, notices and polls
-            // are association-wide and there's no reason to withhold them.
-            // Only payment data is withheld, because there genuinely isn't
-            // any until an admin approves the link.
-            if (docs.isEmpty) {
-              final placeholder = Member(
-                id: '',
-                name: user.displayName?.trim().isNotEmpty == true
-                    ? user.displayName!.trim()
-                    : (user.email ?? ''),
-                email: user.email ?? '',
-                phone: user.phoneNumber ?? '',
-                authUid: user.uid,
-                status: 'approved',
-              );
-              _registerPushToken(placeholder);
-              return HomeShell(member: placeholder, isLinked: false);
-            }
+            // Admin status comes from the `admins/{uid}` marker, not from a
+            // member record's `role`. That matters for a super admin, who
+            // deliberately has no member document at all so they stay out
+            // of the directory — reading `role` there would find nothing
+            // and drop them into the ordinary member shell.
+            //
+            // Watched live (not read once) so demoting an admin — deleting
+            // their marker — drops their app out of the admin panel within
+            // seconds, without them having to log out and back in.
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: AdminSession.watch(user.uid),
+              builder: (context, adminSnapshot) {
+                if (adminSnapshot.connectionState == ConnectionState.waiting &&
+                    !adminSnapshot.hasData) {
+                  return const AuthLoadingView();
+                }
+                final isMarkerAdmin = adminSnapshot.data?.exists ?? false;
+                final isSuper = isMarkerAdmin &&
+                    adminSnapshot.data?.data()?['superAdmin'] == true;
+                // Keep the global notifiers other screens read in sync, but
+                // after this frame — setting them mid-build would try to mark
+                // already-built listeners dirty during build.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  AdminSession.set(admin: isMarkerAdmin, superAdmin: isSuper);
+                });
 
-            final member = Member.fromDoc(docs.first);
-            _registerPushToken(member);
-            if (member.isAdmin) {
-              return AdminShell(member: member);
-            }
-            return HomeShell(member: member);
+                // Not linked to a member record. Rather than locking the
+                // app behind the linking screen, run the normal shell with
+                // a placeholder profile: the directory, notices and polls
+                // are association-wide and there's no reason to withhold
+                // them. Only payment data is withheld, because there
+                // genuinely isn't any until an admin approves the link.
+                if (docs.isEmpty) {
+                  final placeholder = Member(
+                    id: '',
+                    name: user.displayName?.trim().isNotEmpty == true
+                        ? user.displayName!.trim()
+                        : (user.email ?? ''),
+                    email: user.email ?? '',
+                    phone: user.phoneNumber ?? '',
+                    authUid: user.uid,
+                    status: 'approved',
+                    role: isMarkerAdmin ? 'admin' : 'member',
+                  );
+                  _registerPushToken(placeholder);
+                  return isMarkerAdmin
+                      ? AdminShell(member: placeholder)
+                      : HomeShell(member: placeholder, isLinked: false);
+                }
+
+                final member = Member.fromDoc(docs.first);
+
+                // First Google sign-in: the record exists but is bare, so
+                // send them to complete their profile (school, phone, etc.)
+                // before entering the app. Cleared on their first save.
+                if (member.needsProfileSetup) {
+                  return EditProfileScreen(member: member, isInitialSetup: true);
+                }
+
+                _registerPushToken(member);
+                if (member.isAdmin || isMarkerAdmin) {
+                  return AdminShell(member: member);
+                }
+                return HomeShell(member: member);
+              },
+            );
           },
         );
       },

@@ -94,18 +94,21 @@ Leading University (CSE) | Baniyachong Adarsha High School (SSC-18)
 
 Far more than Phase 1–2 is built. As of this writing:
 
-- ✅ **Auth & account linking** — Email/Password login/register, email verification gate, Flow A (auto-match by phone), Flow B (search-by-name + admin-approved link request), **Flow D (Member ID linking — see 4.9)**. Flow C (manual admin re-link UI) is still **not built**.
+- ✅ **Auth & account linking** — Email/Password login/register, **"Continue with Google"** (google_sign_in; first sign-in provisions a member record prefilled from the Google profile with `needsProfileSetup: true`, which routes to a one-time "Complete your profile" setup screen; needs the Google provider enabled + the app's SHA-1 registered in Firebase), **Forgot password** (Firebase reset email), email verification gate, Flow A (auto-match by phone), Flow B (search-by-name + admin-approved link request), **Flow D (Member ID linking — see 4.9)**. Flow C (manual admin re-link UI) is still **not built**.
 - ✅ **Member directory** — searchable, blood-group filter, tap-through profile, one-tap call/SMS/WhatsApp.
-- ✅ **Profile** — view + edit own profile (name, school, designation, qualification, blood group, photo upload).
-- ✅ **Finance** — admin sees all transactions + association total; each member sees only their own statement (both UI-scoped and Firestore-rule-enforced). Admin can log a payment against any member (`AddPaymentScreen`).
+- ✅ **Blood donors** — drawer screen: pick a blood group → members with it (with a prominent blood + one-tap call panel on each profile).
+- ✅ **Profile** — view + edit own profile (name, school, designation, qualification, phone, blood group, photo upload).
+- ✅ **Bilingual + theme** — Bengali/English toggle (with a switch overlay + brief loading screen on change) and light/dark mode, both driven by app-wide `ValueNotifier`s; text uses the bundled Kalpurush face.
+- ✅ **Finance** — admin sees all transactions + association total; each member sees only their own statement (both UI-scoped and Firestore-rule-enforced). Admin can log a payment against any member (`AddPaymentScreen`) — which pushes a notification and writes a persistent in-app notification (see below). **Shareable PDF** (admin summary / member statement) via the `printing` package; Bengali is rendered through `dart:ui` into images so it shapes correctly (the `pdf` package can't shape Indic scripts).
+- ✅ **Personal notifications** — a private per-member inbox (`notifications` collection, e.g. "your payment was recorded"), shown in a "For you" section atop the Notices tab with an unread badge on the tab; read-scoped to the owner so amounts don't leak. Written on payment, cleared/read when the member opens Notices.
 - ✅ **Admin: bulk member provisioning** — `AddMemberScreen` (generates a shareable Member ID), `MemberIdsScreen` (list + CSV export via clipboard).
 - ✅ **Admin: link-request approval** — `LinkRequestsScreen` (this was previously a dead gap — `link_requests` existed with no UI consuming it; now closed).
 - ✅ **Notices** — CRUD (admin) + read (members), with push notification on publish.
 - ✅ **Welfare fund** — request (member) → approve/reject (admin), with push notification on decision.
-- ✅ **Polls** — create (admin), vote (member, double-vote guarded), with push notification on creation.
+- ✅ **Polls** — create (admin, with a voting duration; after `closesAt` the poll auto-closes client-side and only the result stays), vote (member, double-vote guarded), and admin **stop** (close voting now) / **delete**, with push notification on creation. The admin Poll tab lists all polls (live results + manage) with a create button.
 - ✅ **Push notifications** — real, working, server-triggered (see 4.6 — this is **not** the Cloud-Functions design originally sketched in this doc; it now runs on a Supabase Edge Function instead, see 4.2).
 - ✅ **File storage** — profile photos, via **Supabase Storage**, not Firebase Storage (see 4.2 for why).
-- ❌ **Not built yet**: PDF statement export, reports/analytics/charts, calendar/events, offline persistence, CSV export of the full DB (only the Member ID list exports), document hub.
+- ❌ **Not built yet**: reports/analytics/charts, calendar/events, offline persistence, CSV export of the full DB (only the Member ID list exports), document hub. (PDF statement export is now built — see Finance above.)
 
 ---
 

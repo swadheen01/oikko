@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& 'E:\\\\flutter_windows_3.35.6-stable\\\\flutter\\\\bin\\\\flutter.bat' analyze lib\\\\features\\\\home\\\\screens\\\\home_screen.dart lib\\\\features\\\\directory\\\\screens\\\\members_directory_screen.dart lib\\\\features\\\\admin\\\\screens\\\\members_admin_screen.dart lib\\\\features\\\\directory\\\\screens\\\\blood_donors_screen.dart lib\\\\features\\\\polls\\\\screens\\\\polls_screen.dart lib\\\\features\\\\notices\\\\screens\\\\notices_screen.dart lib\\\\features\\\\finance\\\\screens\\\\finance_dashboard_screen.dart)",
+      "PowerShell(& 'E:\\\\flutter_windows_3.35.6-stable\\\\flutter\\\\bin\\\\flutter.bat' analyze lib\\\\features\\\\home\\\\home_shell.dart lib\\\\features\\\\admin\\\\admin_shell.dart)",
+      "PowerShell(& 'E:\\\\flutter_windows_3.35.6-stable\\\\flutter\\\\bin\\\\flutter.bat' analyze lib\\\\core\\\\services\\\\admin_session.dart lib\\\\features\\\\auth\\\\auth_wrapper.dart)"
+    ]
+  }
+}

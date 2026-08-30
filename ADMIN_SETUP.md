@@ -62,6 +62,30 @@ In your Firestore `members` collection, set `role: "admin"` for authorized users
 
 To revoke admin access, delete both the `admins/{uid}` doc and reset `role` back to `"member"`.
 
+### Super admin (invisible owner account)
+
+Add `superAdmin: true` (boolean) to an `admins/{uid}` document to make that account a **super admin**.
+
+Ordinary admins can still promote and demote each other — that's normal association business. What a super admin's marker gets is **protection**: no ordinary admin can edit or delete it, so nobody can lock the owner out of their own app. Nor can an admin create a *new* super admin, which would otherwise let them hand themselves the protected tier through an accomplice.
+
+Super admin only:
+
+- Editing or deleting a super admin's marker document
+- Creating another super admin
+- "Clear all" on payments and notices
+
+**The account stays invisible to everyone else.** It normally has *no* `members` document at all, which means:
+
+- It never appears in the member directory or any admin list — those read the `members` collection
+- No other admin can discover it: the `admins` collection is not listable, and the rules let each caller read only their **own** marker document
+- The app routes on the marker doc, not on a member record's `role`, so a super admin reaches the admin panel without having a member profile
+
+Set it up once in the Firebase Console: create `admins/{your-uid}` with `superAdmin: true`. Do **not** create a `members` record for that account.
+
+⚠️ Nobody can create a super admin from inside the app, by design. If the last super admin marker is lost, restore it from the Firebase Console.
+
+**Known limit:** the "Clear all" restriction is enforced in the UI only. Security rules can't distinguish a bulk delete from a normal one — an ordinary admin may still delete records individually, which is legitimate admin work. The marker-document protections above *are* enforced server-side.
+
 **How to tell if this step is missing:** the admin panel shows a red "Admin permissions are not set up" banner at the top, with the exact UID to use as the document ID. Without that banner, the only symptom is a `permission-denied` error on each admin action separately (publishing a notice, adding a payment, approving a link request), which looks like several unrelated bugs instead of one missing document.
 
 ### Step 5: Create the Supabase Storage Bucket (one-time, required for photo upload)

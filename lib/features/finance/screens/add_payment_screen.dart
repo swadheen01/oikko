@@ -6,9 +6,13 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/finance_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/designation_rank.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../models/member.dart';
+import '../../directory/widgets/school_filter_field.dart';
 import '../../../models/transaction.dart';
 import '../../../widgets/gradient_button.dart';
 import '../../../widgets/gradient_scaffold.dart';
@@ -32,6 +36,7 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
   final _descriptionController = TextEditingController();
 
   String _query = '';
+  String? _schoolFilter;
   Member? _selectedMember;
   DateTime _date = DateTime.now();
   bool _isSaving = false;
@@ -84,6 +89,36 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
         createdBy: adminUid,
       ));
 
+      final title = LocaleService.isEnglish ? 'Payment recorded' : 'পেমেন্ট যোগ হয়েছে';
+      final body = LocaleService.isEnglish
+          ? '${Formatters.currency(amount)} has been added to your account.'
+          : 'আপনার হিসাবে ${Formatters.currency(amount)} জমা হয়েছে।';
+
+      // Store the notification in the member's in-app inbox so it persists
+      // (shown in the Notices screen), not just as a transient push. Written
+      // even if the member hasn't linked yet — they'll see it once they do,
+      // since the read rule resolves their member record's authUid.
+      await _firestoreService.addMemberNotification(
+        memberId: member.id,
+        authUid: member.authUid,
+        title: title,
+        body: body,
+        type: 'payment',
+      );
+
+      // Also send the push. Best-effort: a failed push must not fail the
+      // save, and it only reaches members who have linked their account.
+      String? pushError;
+      try {
+        await NotificationService().sendToMember(
+          memberId: member.id,
+          title: title,
+          body: body,
+        );
+      } catch (e) {
+        pushError = e.toString();
+      }
+
       if (!mounted) return;
       setState(() {
         _isSaving = false;
@@ -95,7 +130,16 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
         _query = '';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.paymentAdded), backgroundColor: AppColors.success),
+        SnackBar(
+          content: Text(
+            pushError == null
+                ? AppStrings.paymentAdded
+                : (LocaleService.isEnglish
+                    ? 'Payment saved, but the member could not be notified.'
+                    : 'পেমেন্ট যোগ হয়েছে, তবে সদস্যকে জানানো যায়নি।'),
+          ),
+          backgroundColor: pushError == null ? AppColors.success : AppColors.warning,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -152,14 +196,42 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
                 StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _firestoreService.watchAllMembers(),
                   builder: (context, snapshot) {
-                    final members = (snapshot.data?.docs ?? [])
+                    final counts = <String, int>{};
+                    for (final doc in snapshot.data?.docs ?? const []) {
+                      final s = (doc.data()['schoolName'] ?? '').toString().trim();
+                      if (s.isEmpty) continue;
+                      counts[s] = (counts[s] ?? 0) + 1;
+                    }
+                    return SchoolFilterField(
+                      counts: counts,
+                      selected: _schoolFilter,
+                      onChanged: (v) => setState(() => _schoolFilter = v),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppDimensions.sm),
+                StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _firestoreService.watchAllMembers(),
+                  builder: (context, snapshot) {
+                    final all = (snapshot.data?.docs ?? [])
                         .map(Member.fromDoc)
                         .where((m) => m.isApproved)
+                        .toList();
+
+                    final members = all
+                        .where((m) =>
+                            _schoolFilter == null ||
+                            m.schoolName.trim() == _schoolFilter)
                         .where((m) =>
                             _query.isEmpty ||
                             m.name.toLowerCase().contains(_query.toLowerCase()) ||
                             m.schoolName.toLowerCase().contains(_query.toLowerCase()))
-                        .toList();
+                        .toList()
+                      // Seniority order within a school, so the person being
+                      // looked for sits where the admin expects them.
+                      ..sort((a, b) => DesignationRank.compare(
+                            a.designation, a.name, b.designation, b.name,
+                          ));
 
                     if (members.isEmpty) {
                       return Padding(

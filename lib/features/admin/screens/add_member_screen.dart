@@ -7,6 +7,7 @@ import '../../../core/locale/locale_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../directory/widgets/school_autocomplete_field.dart';
 import '../../../widgets/gradient_button.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../../../widgets/premium_card.dart';
@@ -155,14 +156,13 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                         prefixIcon: Icon(Icons.person_rounded, color: AppColors.primary),
                       ),
                     ),
+                    // Ordered to match the admin's own member list — name,
+                    // school, mobile — so entries can be typed straight
+                    // down the page without hunting between fields.
                     const SizedBox(height: AppDimensions.md),
-                    TextFormField(
-                      controller: _nameEnController,
-                      style: AppTextStyles.bodyLarge,
-                      decoration: InputDecoration(
-                        labelText: LocaleService.isEnglish ? 'Name (English)' : 'নাম (ইংরেজিতে)',
-                        prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary),
-                      ),
+                    SchoolAutocompleteField(
+                      controller: _schoolController,
+                      label: LocaleService.isEnglish ? 'School' : 'বিদ্যালয়',
                     ),
                     const SizedBox(height: AppDimensions.md),
                     TextFormField(
@@ -170,17 +170,8 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       keyboardType: TextInputType.phone,
                       style: AppTextStyles.bodyLarge,
                       decoration: InputDecoration(
-                        labelText: LocaleService.isEnglish ? 'Phone (optional)' : 'ফোন (ঐচ্ছিক)',
+                        labelText: LocaleService.isEnglish ? 'Mobile number' : 'মোবাইল নম্বর',
                         prefixIcon: Icon(Icons.phone_rounded, color: AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.md),
-                    TextFormField(
-                      controller: _schoolController,
-                      style: AppTextStyles.bodyLarge,
-                      decoration: InputDecoration(
-                        labelText: LocaleService.isEnglish ? 'School (optional)' : 'বিদ্যালয় (ঐচ্ছিক)',
-                        prefixIcon: Icon(Icons.school_rounded, color: AppColors.primary),
                       ),
                     ),
                     const SizedBox(height: AppDimensions.md),
@@ -190,6 +181,15 @@ class _AddMemberScreenState extends State<AddMemberScreen> {
                       decoration: InputDecoration(
                         labelText: LocaleService.isEnglish ? 'Designation (optional)' : 'পদবী (ঐচ্ছিক)',
                         prefixIcon: Icon(Icons.badge_rounded, color: AppColors.primary),
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.md),
+                    TextFormField(
+                      controller: _nameEnController,
+                      style: AppTextStyles.bodyLarge,
+                      decoration: InputDecoration(
+                        labelText: LocaleService.isEnglish ? 'Name in English (optional)' : 'নাম ইংরেজিতে (ঐচ্ছিক)',
+                        prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary),
                       ),
                     ),
                   ],

@@ -5,6 +5,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
+import '../../../core/services/admin_session.dart';
+import '../../../core/services/finance_pdf_service.dart';
 import '../../../core/services/finance_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/utils/formatters.dart';
@@ -25,9 +27,13 @@ import '../widgets/transaction_list_item.dart';
 ///   — the "personal statement". Enforced both here (query is scoped to
 ///   `memberId`) and server-side by the `transactions` security rule, so a
 ///   member can never see another member's payment amounts.
-class FinanceDashboardScreen extends StatelessWidget {
+class FinanceDashboardScreen extends StatefulWidget {
   final bool isAdmin;
   final String? memberId;
+
+  /// The member's own name / ID, used only to title their PDF statement.
+  final String memberName;
+  final String memberCode;
 
   /// False when the account isn't attached to a member record yet — there
   /// is no payment history to show, so this explains how to get one rather
@@ -38,8 +44,62 @@ class FinanceDashboardScreen extends StatelessWidget {
     super.key,
     this.isAdmin = false,
     this.memberId,
+    this.memberName = '',
+    this.memberCode = '',
     this.isLinked = true,
   }) : assert(isAdmin || memberId != null, 'memberId is required when isAdmin is false');
+
+  @override
+  State<FinanceDashboardScreen> createState() => _FinanceDashboardScreenState();
+}
+
+class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
+  final _financeService = FinanceService();
+  // Cached once (see HomeScreen): per-build streams make StreamBuilder flash
+  // back to empty (totals briefly ৳0) and reset scroll on every rebuild.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _txStream = isAdmin
+      ? _financeService.watchAllTransactions()
+      : _financeService.watchMemberTransactions(memberId!);
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
+      FirestoreService().watchAllMembers();
+
+  bool get isAdmin => widget.isAdmin;
+  String? get memberId => widget.memberId;
+  String get memberName => widget.memberName;
+  String get memberCode => widget.memberCode;
+  bool get isLinked => widget.isLinked;
+
+  Future<void> _sharePdf(
+    BuildContext context, {
+    required List<AppTransaction> transactions,
+    required Map<String, String> memberNames,
+  }) async {
+    final isEn = LocaleService.isEnglish;
+    try {
+      if (isAdmin) {
+        await FinancePdfService.shareAdminSummary(
+          transactions: transactions,
+          memberNames: memberNames,
+        );
+      } else {
+        await FinancePdfService.shareMemberStatement(
+          transactions: transactions,
+          memberName: memberName.isNotEmpty
+              ? memberName
+              : (isEn ? 'Member' : 'সদস্য'),
+          memberCode: memberCode,
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${isEn ? 'Could not create PDF' : 'পিডিএফ তৈরি করা যায়নি'}: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
 
   Future<bool> _confirm(
     BuildContext context, {
@@ -148,7 +208,7 @@ class FinanceDashboardScreen extends StatelessWidget {
     // row) keeps this to a single extra query no matter how many payments
     // are listed.
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirestoreService().watchAllMembers(),
+      stream: _membersStream,
       builder: (context, snapshot) {
         final names = <String, String>{
           for (final doc in snapshot.data?.docs ?? const [])
@@ -160,13 +220,11 @@ class FinanceDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, Map<String, String> memberNames) {
-    final financeService = FinanceService();
+    final financeService = _financeService;
 
     return GradientScaffold(
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: isAdmin
-            ? financeService.watchAllTransactions()
-            : financeService.watchMemberTransactions(memberId!),
+        stream: _txStream,
         builder: (context, snapshot) {
           // Without this, a failed query (a missing composite index is the
           // usual cause) renders as a perfectly normal-looking zero
@@ -231,7 +289,25 @@ class FinanceDashboardScreen extends StatelessWidget {
                             style: AppTextStyles.h3,
                           ),
                         ),
-                        if (isAdmin && transactions.isNotEmpty)
+                        // Share a PDF of the summary (admin) or the member's
+                        // own statement — the shareable financial document.
+                        if (transactions.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: () => _sharePdf(
+                              context,
+                              transactions: transactions,
+                              memberNames: memberNames,
+                            ),
+                            icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                            label: Text(LocaleService.isEnglish ? 'PDF' : 'পিডিএফ'),
+                            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                          ),
+                        // Wiping every payment record is irreversible
+                        // and affects every member, so it's reserved
+                        // for the super admin.
+                        if (isAdmin &&
+                            transactions.isNotEmpty &&
+                            AdminSession.isSuperAdmin.value)
                           TextButton.icon(
                             onPressed: () => _confirmClearAll(context, financeService),
                             icon: const Icon(Icons.delete_sweep_rounded, size: 18),

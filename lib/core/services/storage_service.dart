@@ -66,6 +66,21 @@ class StorageService {
     }
   }
 
+  /// Committee member photo, keyed by the fixed slot id (c0..c4). Same
+  /// cache-bust trick as profile photos, since the path is stable per slot.
+  Future<String> uploadCommitteePhoto({
+    required String slotId,
+    required Uint8List bytes,
+  }) async {
+    final path = 'committee_photos/$slotId.jpg';
+    await _uploadWithUpsertFallback(
+      path,
+      bytes,
+      const FileOptions(contentType: 'image/jpeg', upsert: true),
+    );
+    return '${_bucket.getPublicUrl(path)}?t=${DateTime.now().millisecondsSinceEpoch}';
+  }
+
   Future<String> uploadReceipt({
     required String transactionId,
     required Uint8List bytes,

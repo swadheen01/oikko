@@ -13,20 +13,29 @@ class LanguageToggle extends StatelessWidget {
       builder: (context, value, _) {
         final isEn = value == Language.en;
         return GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () => LocaleService.toggle(),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.25)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
             ),
-            child: Text(
-              isEn ? 'EN' : 'বাংলা',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: Colors.white,
-                fontSize: 12,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.translate_rounded, color: Colors.white, size: 14),
+                const SizedBox(width: 5),
+                Text(
+                  isEn ? 'বাংলা' : 'EN',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         );

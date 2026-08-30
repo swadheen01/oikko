@@ -6,9 +6,35 @@ class AppStrings {
 
   // App
   static String get appName => LocaleService.isEnglish ? 'Oikko' : 'Oikko';
-  static String get appTagline => LocaleService.isEnglish
-      ? 'Teachers Association, Baniachang'
-      : 'শিক্ষক সমিতি, বানিয়াচং';
+
+  /// The association's full official name. Defined once here — it was
+  /// previously written out separately on the home card, the About page and
+  /// the tagline, which is how those three drifted apart.
+  static String get associationName => LocaleService.isEnglish
+      ? 'Bangladesh Teachers Association, Baniyachong Upazila Branch, Habiganj'
+      : 'বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং উপজেলা শাখা, হবিগঞ্জ';
+
+  /// Short form for tight spots (top bars, splash) where the full name
+  /// would wrap over several lines.
+  static String get associationShortName => LocaleService.isEnglish
+      ? 'Bangladesh Teachers Association'
+      : 'বাংলাদেশ শিক্ষক সমিতি';
+
+  /// The branch line, shown under the association name on the splash.
+  static String get associationBranch => LocaleService.isEnglish
+      ? 'Baniyachong Upazila Branch'
+      : 'বানিয়াচং উপজেলা শাখা';
+
+  /// Ownership line shown as a small faint footer at the bottom of every
+  /// screen, so the association that owns the app is always visible.
+  static String get associationFooter => LocaleService.isEnglish
+      ? 'Bangladesh Teachers Association, Baniyachong Branch'
+      : 'বাংলাদেশ শিক্ষক সমিতি, বানিয়াচং শাখা';
+
+  static String get associationLocation =>
+      LocaleService.isEnglish ? 'Baniyachong, Habiganj' : 'বানিয়াচং, হবিগঞ্জ';
+
+  static String get appTagline => associationShortName;
 
   // Auth - Login
   static String get loginTitle =>
@@ -208,7 +234,7 @@ class AppStrings {
   static String get orSearchByName =>
       LocaleService.isEnglish ? 'or search by name' : 'অথবা নাম দিয়ে খুঁজুন';
   static String get linkRequests =>
-      LocaleService.isEnglish ? 'Link requests' : 'সংযোগ অনুরোধ';
+      LocaleService.isEnglish ? 'Sync' : 'সংযোগ';
   static String get noLinkRequests =>
       LocaleService.isEnglish ? 'No pending requests' : 'কোনো অনুরোধ নেই';
   static String get allRequestsReviewed => LocaleService.isEnglish

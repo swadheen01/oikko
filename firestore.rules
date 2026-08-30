@@ -14,6 +14,21 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // A super admin is an admin whose marker doc carries superAdmin: true.
+    // It exists so one account can hold the powers that would otherwise let
+    // any admin lock everyone else out — granting/revoking admin rights,
+    // and the irreversible "clear everything" actions.
+    //
+    // A super admin normally has no `members` record at all, so they don't
+    // appear in the member directory and no other admin can see the account
+    // exists: the `admins` collection isn't listable, and each caller can
+    // read only their own marker doc.
+    function isSuperAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.superAdmin == true;
+    }
+
     // Does `memberId` (a `members` collection doc ID, as stored on
     // transactions/welfare_requests) belong to the caller? Resolved by
     // reading that member doc's `authUid` field directly — no reverse
@@ -36,12 +51,37 @@ service cloud.firestore {
     match /admins/{authUid} {
       allow read: if request.auth != null && request.auth.uid == authUid;
 
-      // Existing admins may promote/demote others from the Members screen.
-      // Writing your own marker is blocked: creating it would let anyone
-      // self-promote, and deleting it lets an admin lock themselves out
-      // (with no way back except the Firebase console). The first admin is
-      // still created by hand — see ADMIN_SETUP.md.
-      allow write: if isAdmin() && request.auth.uid != authUid;
+      // Any admin may grant or revoke ordinary admin rights, but a super
+      // admin's marker is off limits to them: without that guard, an admin
+      // could delete the owner's own marker (a delete is just a write) and
+      // lock them out of their own app.
+      //
+      // They also can't mint a new super admin — that would let an admin
+      // hand themselves the protected tier through an accomplice.
+      //
+      // Writing your own marker is always blocked: creating it would be
+      // self-promotion, deleting it would lock you out. The first super
+      // admin is made by hand in the Firebase console — see ADMIN_SETUP.md.
+      //
+      // Split by operation because `request.resource` is null on delete and
+      // `resource` is null on create; a single `write` rule touching both
+      // would error out and deny everything.
+      allow create: if request.auth != null && request.auth.uid != authUid && (
+        isSuperAdmin() ||
+        (isAdmin() && request.resource.data.superAdmin != true)
+      );
+
+      allow update: if request.auth != null && request.auth.uid != authUid && (
+        isSuperAdmin() ||
+        (isAdmin() &&
+         resource.data.superAdmin != true &&
+         request.resource.data.superAdmin != true)
+      );
+
+      allow delete: if request.auth != null && request.auth.uid != authUid && (
+        isSuperAdmin() ||
+        (isAdmin() && resource.data.superAdmin != true)
+      );
     }
 
     // Members collection - read all, write only own.
@@ -98,6 +138,27 @@ service cloud.firestore {
       allow create: if isOwnMemberRecord(request.resource.data.memberId);
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // Personal notifications - a private per-member inbox. Only the owner
+    // (matched by the denormalized authUid, or by resolving the member doc)
+    // and admins may read; only admins create them (a payment confirmation
+    // is an admin action); the owner may delete/mark-read their own.
+    match /notifications/{notificationId} {
+      allow read: if isAdmin()
+        || (request.auth != null && resource.data.authUid == request.auth.uid)
+        || isOwnMemberRecord(resource.data.memberId);
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin()
+        || (request.auth != null && resource.data.authUid == request.auth.uid)
+        || isOwnMemberRecord(resource.data.memberId);
+    }
+
+    // Committee — the elected office bearers shown on the About page. Anyone
+    // signed in can read; only admins edit (name, designation, photo).
+    match /committee/{memberId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // Polls - read all, create/delete admin only, update (voting) any member

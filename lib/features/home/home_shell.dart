@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/services/firestore_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/constants/app_dimensions.dart';
@@ -35,6 +37,30 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _currentIndex = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final _firestoreService = FirestoreService();
+
+  /// The Notices tab index — used both to route there and to know when to
+  /// clear the unread-notifications badge.
+  static const _noticesIndex = 3;
+
+  /// Live feed of this member's private notifications; the count of unread
+  /// ones drives the red badge on the Notices tab. Null for accounts with no
+  /// member record (nothing to notify).
+  late final Stream<QuerySnapshot<Map<String, dynamic>>>? _inboxStream =
+      widget.member.id.isEmpty
+          ? null
+          : _firestoreService.watchMemberNotifications(widget.member.id);
+
+  int _unreadInbox(QuerySnapshot<Map<String, dynamic>>? snap) =>
+      (snap?.docs ?? const []).where((d) => d.data()['read'] != true).length;
+
+  void _onSelectTab(int index) {
+    setState(() => _currentIndex = index);
+    // Opening Notices clears the badge.
+    if (index == _noticesIndex && widget.member.id.isNotEmpty) {
+      _firestoreService.markMemberNotificationsRead(widget.member.id);
+    }
+  }
 
   // A getter (not `late final`) so it always reflects the latest `widget.member`
   // — AuthWrapper streams live Firestore updates into a new Member each time
@@ -48,15 +74,21 @@ class _HomeShellState extends State<HomeShell> {
     HomeScreen(member: widget.member, isLinked: widget.isLinked),
     FinanceDashboardScreen(
       memberId: widget.member.id,
+      memberName: widget.member.name,
+      memberCode: widget.member.memberCode,
       isLinked: widget.isLinked,
     ),
     const MembersDirectoryScreen(),
-    const NoticesScreen(),
+    NoticesScreen(memberId: widget.member.id),
     PollsScreen(currentUserUid: FirebaseAuth.instance.currentUser?.uid),
     ProfileScreen(member: widget.member),
   ];
 
-  late final List<_NavItem> _navItems = [
+  // A getter (not `late final`): the labels come from AppStrings, which
+  // switch on the current language. Cached once, they'd keep the language
+  // that was active when the shell first built — which is exactly why the
+  // tab labels used to stay put after switching language.
+  List<_NavItem> get _navItems => [
     _NavItem(icon: Icons.home_rounded, label: AppStrings.home, color: AppColors.primary),
     _NavItem(
       icon: Icons.account_balance_wallet_rounded,
@@ -76,7 +108,7 @@ class _HomeShellState extends State<HomeShell> {
       drawer: AppDrawer(
         member: widget.member,
         currentIndex: _currentIndex,
-        onSelectTab: (index) => setState(() => _currentIndex = index),
+        onSelectTab: _onSelectTab,
         navItems: _navItems
             .map((item) => DrawerNavItem(icon: item.icon, label: item.label, color: item.color))
             .toList(),
@@ -86,7 +118,7 @@ class _HomeShellState extends State<HomeShell> {
           _TopBar(
             member: widget.member,
             onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
-            onAvatarTap: () => setState(() => _currentIndex = _navItems.length - 1),
+            onAvatarTap: () => _onSelectTab(_navItems.length - 1),
           ),
           Expanded(child: IndexedStack(index: _currentIndex, children: _screens)),
         ],
@@ -111,30 +143,67 @@ class _HomeShellState extends State<HomeShell> {
         child: SafeArea(
           child: SizedBox(
             height: 64,
-            child: Row(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _inboxStream,
+              builder: (context, inboxSnap) {
+                // Unread count for the Notices badge — hidden while the
+                // Notices tab is the one open (it clears them on entry).
+                final unread = _currentIndex == _noticesIndex
+                    ? 0
+                    : _unreadInbox(inboxSnap.data);
+                return Row(
               children: List.generate(_navItems.length, (index) {
                 final item = _navItems[index];
                 final isSelected = index == _currentIndex;
+                final badge = index == _noticesIndex ? unread : 0;
                 return Expanded(
                   child: InkWell(
-                    onTap: () => setState(() => _currentIndex = index),
+                    onTap: () => _onSelectTab(index),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: isSelected ? item.color.withValues(alpha: 0.14) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
-                          ),
-                          child: Icon(
-                            item.icon,
-                            size: 22,
-                            color: isSelected
-                                ? item.color
-                                : AppColors.textSecondary,
-                          ),
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: isSelected ? item.color.withValues(alpha: 0.14) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+                              ),
+                              child: Icon(
+                                item.icon,
+                                size: 22,
+                                color: isSelected
+                                    ? item.color
+                                    : AppColors.textSecondary,
+                              ),
+                            ),
+                            if (badge > 0)
+                              Positioned(
+                                top: -4,
+                                right: -3,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  constraints: const BoxConstraints(minWidth: 16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.danger,
+                                    borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+                                    border: Border.all(color: AppColors.glassChrome, width: 1.5),
+                                  ),
+                                  child: Text(
+                                    badge > 9 ? '9+' : '$badge',
+                                    textAlign: TextAlign.center,
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Padding(
@@ -160,6 +229,8 @@ class _HomeShellState extends State<HomeShell> {
                   ),
                 );
               }),
+                );
+              },
             ),
           ),
         ),

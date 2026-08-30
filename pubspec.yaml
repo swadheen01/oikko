@@ -16,6 +16,11 @@ dependencies:
   cloud_firestore: ^5.5.0
   firebase_messaging: ^15.1.5
 
+  # "Continue with Google" sign-in. Pinned to the 6.x line for the classic
+  # signIn()/authentication API; needs the Google provider enabled in Firebase
+  # Auth and this app's SHA-1/SHA-256 fingerprints registered (see README).
+  google_sign_in: ^6.2.1
+
   # Supabase — used only for file storage (profile photos), since Firebase
   # Storage now requires the paid Blaze plan even within its free-tier
   # limits. Auth/Firestore/everything else stays on Firebase.
@@ -31,7 +36,9 @@ dependencies:
   provider: ^6.1.2
 
   # UI / Fonts
-  google_fonts: ^6.2.1
+  # google_fonts removed: the app now bundles Kalpurush from assets/fonts,
+  # and nothing else used the package. It also fetched fonts over the
+  # network at runtime, which this app has no reason to do.
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
   flutter_svg: ^2.0.15
@@ -41,6 +48,9 @@ dependencies:
   image_picker: ^1.1.2
   url_launcher: ^6.3.1
   pdf: ^3.11.1
+  # Share/print sheet for the generated finance PDF (statement/summary).
+  # Bundles the same `pdf` package already used above.
+  printing: ^5.13.4
   path_provider: ^2.1.5
   connectivity_plus: ^6.1.0
 
@@ -82,5 +92,31 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    # Kalpurush — the Bengali face the association reads. Not available on
+    # Google Fonts, so the .ttf is bundled. Use the Unicode build (~307 KB),
+    # NOT the "ANSI" one, which is Bijoy-encoded and renders as gibberish.
+    - family: Kalpurush
+      fonts:
+        - asset: assets/fonts/Kalpurush.ttf
+
   assets:
     - assets/oikko.png
+    # Committee photos shown on the About page + full committee list. The
+    # *_cut.png versions have the photo background removed (transparent) so
+    # they sit on a clean white circle. first=President, second=General
+    # Secretary, third=Joint Gen. Sec., fourth=Organizing Sec., fifth=Joint
+    # Organizing Sec.
+    - assets/first_cut.png
+    - assets/second_cut.png
+    - assets/third_cut.png
+    - assets/fourth_cut.png
+    - assets/fifth_cut.png
+    # Face crop of developer.png — the full portrait is head-to-waist, so
+    # the original would show mostly shirt once masked into a circle.
+    - assets/developer_face.png
+    # assets/members_seed.json is deliberately NOT bundled. The roster has
+    # already been imported into Firestore, so shipping it would add ~100KB
+    # to every install for no reason. The file is kept in the repo as a
+    # record of what was imported; re-add this line if it's ever needed again.

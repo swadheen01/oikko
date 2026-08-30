@@ -10,6 +10,7 @@ import '../../../core/utils/designation_rank.dart';
 import '../../../models/member.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../widgets/member_card.dart';
+import '../widgets/school_filter_field.dart';
 import 'member_profile_screen.dart';
 
 /// The member-facing roster: every approved member, searchable and
@@ -28,9 +29,14 @@ class MembersDirectoryScreen extends StatefulWidget {
 
 class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
   final _firestoreService = FirestoreService();
+  // Cached once (see HomeScreen): a per-build stream makes StreamBuilder flash
+  // back to empty and resets scroll on every rebuild.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
+      _firestoreService.watchAllMembers();
   final _searchController = TextEditingController();
   String _query = '';
   String? _bloodGroupFilter;
+  String? _schoolFilter;
 
   static const _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -48,7 +54,8 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
           m.nameEnglish.toLowerCase().contains(q) ||
           m.schoolName.toLowerCase().contains(q);
       final matchesBlood = _bloodGroupFilter == null || m.bloodGroup == _bloodGroupFilter;
-      return matchesQuery && matchesBlood && m.isApproved;
+      final matchesSchool = _schoolFilter == null || m.schoolName.trim() == _schoolFilter;
+      return matchesQuery && matchesBlood && matchesSchool && m.isApproved;
     }).toList();
 
     // By seniority (head teacher first), not the alphabetical order the
@@ -59,11 +66,66 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
     return result;
   }
 
+  /// School -> approved-member count, for the picker.
+  static Map<String, int> _schoolCounts(List<Member> members) {
+    final counts = <String, int>{};
+    for (final m in members) {
+      if (!m.isApproved) continue;
+      final s = m.schoolName.trim();
+      if (s.isEmpty) continue;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  List<Widget> _schoolSlivers(BuildContext context, List<Member> members) {
+    final groups = DesignationRank.groupBySchool<Member>(
+      members,
+      school: (m) => m.schoolName,
+      designation: (m) => m.designation,
+      name: (m) => m.name,
+      noSchool: LocaleService.isEnglish ? 'Other' : 'অন্যান্য',
+    );
+
+    return [
+      for (final entry in groups) ...[
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppDimensions.lg, AppDimensions.md, AppDimensions.lg, AppDimensions.sm,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: _SchoolHeader(school: entry.key, count: entry.value.length),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => Padding(
+                padding: const EdgeInsets.only(bottom: AppDimensions.sm),
+                child: MemberCard(
+                  member: entry.value[index],
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MemberProfileScreen(member: entry.value[index]),
+                    ),
+                  ),
+                ),
+              ),
+              childCount: entry.value.length,
+            ),
+          ),
+        ),
+      ],
+      const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.xl)),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return GradientScaffold(
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _firestoreService.watchAllMembers(),
+        stream: _membersStream,
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(
@@ -108,6 +170,20 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
                 sliver: SliverToBoxAdapter(
+                  child: SchoolFilterField(
+                    // Counts come from the whole roster, not the filtered
+                    // list, so the sheet still shows every school once one
+                    // is already picked.
+                    counts: _schoolCounts(all),
+                    selected: _schoolFilter,
+                    onChanged: (s) => setState(() => _schoolFilter = s),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppDimensions.sm)),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppDimensions.lg),
+                sliver: SliverToBoxAdapter(
                   child: TextField(
                     controller: _searchController,
                     onChanged: (value) => setState(() => _query = value),
@@ -140,6 +216,7 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
                             child: _FilterChip(
                               label: bg,
                               icon: Icons.bloodtype_rounded,
+                              iconColor: AppColors.danger,
                               isSelected: _bloodGroupFilter == bg,
                               onTap: () => setState(() => _bloodGroupFilter = bg),
                             ),
@@ -169,30 +246,70 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
                   ),
                 )
               else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.xl,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppDimensions.sm),
-                        child: MemberCard(
-                          member: filtered[index],
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => MemberProfileScreen(member: filtered[index]),
-                            ),
-                          ),
-                        ),
-                      ),
-                      childCount: filtered.length,
-                    ),
-                  ),
-                ),
+                // Grouped by school rather than one flat list: with 400+
+                // members across 27 schools, a single alphabetical run is
+                // unusable — you look for "who teaches at X", not for a
+                // position in a 400-row list.
+                ..._schoolSlivers(context, filtered),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Section heading for one school, with its staff count.
+class _SchoolHeader extends StatelessWidget {
+  final String school;
+  final int count;
+
+  const _SchoolHeader({required this.school, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.md, vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.18),
+            AppColors.primary.withValues(alpha: 0.04),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border(
+          left: BorderSide(color: AppColors.primary, width: 3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.school_rounded, size: 16, color: AppColors.primary),
+          const SizedBox(width: AppDimensions.sm),
+          Expanded(
+            child: Text(
+              school,
+              style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          const SizedBox(width: AppDimensions.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+            ),
+            child: Text(
+              '$count',
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -204,11 +321,16 @@ class _FilterChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  /// Tint for the leading icon when unselected — gives the blood-group
+  /// chips a red droplet so they read as "blood" at a glance.
+  final Color? iconColor;
+
   const _FilterChip({
     required this.label,
     required this.icon,
     required this.isSelected,
     required this.onTap,
+    this.iconColor,
   });
 
   @override
@@ -230,7 +352,7 @@ class _FilterChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: isSelected ? AppColors.textOnPrimary : AppColors.textSecondary),
+            Icon(icon, size: 14, color: isSelected ? AppColors.textOnPrimary : (iconColor ?? AppColors.textSecondary)),
             const SizedBox(width: 5),
             Text(
               label,

@@ -16,7 +16,7 @@ import '../finance/screens/finance_dashboard_screen.dart';
 import '../home/screens/home_screen.dart';
 import '../notices/screens/notice_create_screen.dart';
 import '../notices/screens/notices_screen.dart';
-import '../polls/screens/poll_create_screen.dart';
+import '../polls/screens/polls_screen.dart';
 import '../screens/profile_screen.dart';
 import 'screens/add_member_screen.dart';
 import 'screens/link_requests_screen.dart';
@@ -56,12 +56,19 @@ class _AdminShellState extends State<AdminShell> {
     const FinanceDashboardScreen(isAdmin: true),
     const MembersAdminScreen(),
     const NoticeCreateScreen(),
-    const PollCreateScreen(),
+    // The Poll tab lists every poll (so admins can stop or delete them,
+    // and see live results) with a "Create new poll" button up top.
+    PollsScreen(
+      currentUserUid: FirebaseAuth.instance.currentUser?.uid,
+      showCreateButton: true,
+    ),
     const LinkRequestsScreen(),
     ProfileScreen(member: widget.member),
   ];
 
-  late final List<_AdminNavItem> _navItems = [
+  // A getter (not `late final`) so the labels re-read AppStrings on each
+  // build and follow the current language — see the same fix in HomeShell.
+  List<_AdminNavItem> get _navItems => [
     _AdminNavItem(
       icon: Icons.home_rounded,
       label: AppStrings.home,
@@ -130,13 +137,9 @@ class _AdminShellState extends State<AdminShell> {
         }),
         // Members isn't listed here — it's a tab now, and the drawer
         // already mirrors every tab above.
+        // Same order as the "+" speed dial, so the two don't disagree:
+        // payments and expenses first, adding a member below them.
         actionItems: [
-          DrawerActionItem(
-            icon: Icons.person_add_rounded,
-            label: AppStrings.addMember,
-            color: AppColors.accentViolet,
-            builder: (_) => const AddMemberScreen(),
-          ),
           DrawerActionItem(
             icon: Icons.payments_rounded,
             label: AppStrings.addPayment,
@@ -149,13 +152,19 @@ class _AdminShellState extends State<AdminShell> {
             color: AppColors.danger,
             builder: (_) => const AddExpenseScreen(),
           ),
+          DrawerActionItem(
+            icon: Icons.person_add_rounded,
+            label: AppStrings.addMember,
+            color: AppColors.accentViolet,
+            builder: (_) => const AddMemberScreen(),
+          ),
           // The admin's Notice tab only creates them; this is where posted
           // notices can be reviewed and removed.
           DrawerActionItem(
             icon: Icons.campaign_rounded,
             label: AppStrings.notices,
             color: AppColors.accentAmber,
-            builder: (_) => const NoticesScreen(isAdmin: true),
+            builder: (_) => NoticesScreen(isAdmin: true, memberId: widget.member.id),
           ),
         ],
       ),

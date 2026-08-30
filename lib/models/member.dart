@@ -15,6 +15,10 @@ class Member {
   final String status;
   final String? authUid;
   final bool isClaimed;
+  /// True for a freshly created Google sign-in that hasn't filled in the
+  /// rest of its profile yet — AuthWrapper routes it to the setup screen
+  /// until it's cleared (on first profile save).
+  final bool needsProfileSetup;
   final DateTime? createdAt;
   /// Short, human-shareable ID (derived from the Firestore doc ID — see
   /// `FirestoreService.createMemberByAdmin`) that a member can hand a
@@ -37,6 +41,7 @@ class Member {
     this.status = 'pending',
     this.authUid,
     this.isClaimed = false,
+    this.needsProfileSetup = false,
     this.createdAt,
     this.memberCode = '',
   });
@@ -64,6 +69,7 @@ class Member {
       status: data['status'] ?? 'pending',
       authUid: data['authUid'],
       isClaimed: data['isClaimed'] ?? false,
+      needsProfileSetup: data['needsProfileSetup'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       memberCode: data['memberCode'] ?? '',
     );

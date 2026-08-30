@@ -83,16 +83,22 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        LocaleService.isEnglish ? 'Profile information' : 'প্রোফাইল তথ্য',
+                        LocaleService.isEnglish
+                            ? 'Profile information'
+                            : 'প্রোফাইল তথ্য',
                         style: AppTextStyles.h3,
                       ),
                       TextButton.icon(
                         onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => EditProfileScreen(member: member)),
+                          MaterialPageRoute(
+                            builder: (_) => EditProfileScreen(member: member),
+                          ),
                         ),
                         icon: const Icon(Icons.edit_rounded, size: 16),
                         label: Text(AppStrings.editProfile),
-                        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -178,7 +184,11 @@ class _ProfileInfoTile extends StatelessWidget {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
             ),
-            child: Icon(icon, color: AppColors.primary, size: AppDimensions.iconSm),
+            child: Icon(
+              icon,
+              color: AppColors.primary,
+              size: AppDimensions.iconSm,
+            ),
           ),
           const SizedBox(width: AppDimensions.md),
           Expanded(
@@ -187,7 +197,12 @@ class _ProfileInfoTile extends StatelessWidget {
               children: [
                 Text(label, style: AppTextStyles.overline),
                 const SizedBox(height: 4),
-                Text(value, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  value,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),

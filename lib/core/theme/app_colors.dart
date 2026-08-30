@@ -56,16 +56,24 @@ class AppColors {
   /// Translucent card fill — the actual "glass" in the glass look. Sits
   /// over the screen gradient so the blue behind it shows through, which is
   /// what a flat opaque white can never do.
-  static Color get glassFill => _pick(const Color(0xCCFFFFFF), const Color(0xB31B2942));
+  ///
+  /// Kept fairly opaque on purpose: at lower alpha the gradient bleeds
+  /// through enough to wash out body text, and Kalpurush's thin strokes
+  /// show that far more than a heavier face would.
+  static Color get glassFill => _pick(const Color(0xF0FFFFFF), const Color(0xD11B2942));
 
   /// Slightly stronger glass for surfaces that need more separation
   /// (top bars, bottom nav) while still letting the gradient behind
   /// them tint through.
   static Color get glassChrome => _pick(const Color(0xF2F4FAFF), const Color(0xF20D1526));
 
-  // Text
-  static Color get textPrimary => _pick(const Color(0xFF0B1526), const Color(0xFFE8F0FA));
-  static Color get textSecondary => _pick(const Color(0xFF5B6B84), const Color(0xFF95A7C2));
+  // Text. Darker than a typical slate pair: Kalpurush has only one weight,
+  // so every "bold" in the app renders at regular — contrast has to carry
+  // the emphasis that weight normally would. `textSecondary` is kept
+  // deliberately strong (not a light grey): it backs most body text and
+  // captions, and Kalpurush's thin strokes fade fast at low contrast.
+  static Color get textPrimary => _pick(const Color(0xFF030609), const Color(0xFFF6FAFE));
+  static Color get textSecondary => _pick(const Color(0xFF1F2C3E), const Color(0xFFC3D2E6));
   static Color get textOnPrimary => const Color(0xFFFFFFFF);
 
   // Status colors — lifted in dark mode for contrast against the dark ground.

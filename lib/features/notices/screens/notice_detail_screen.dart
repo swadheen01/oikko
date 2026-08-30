@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
+import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/notice.dart';
@@ -37,13 +38,21 @@ class NoticeDetailScreen extends StatelessWidget {
               const SizedBox(height: AppDimensions.md),
               Text(notice.title, style: AppTextStyles.h1),
               const SizedBox(height: AppDimensions.sm),
-              Row(
-                children: [
-                  Text(
-                    '${AppStrings.noticePostedBy}: ${notice.postedBy}',
+              // notice.postedBy holds the poster's Auth uid; resolve it to a
+              // member name so the reader sees a name, not a long id. Shows
+              // the label alone until it resolves, and falls back to "Admin"
+              // for a poster with no member record (e.g. a super admin).
+              FutureBuilder<String?>(
+                future: FirestoreService().memberNameByAuthUid(notice.postedBy),
+                builder: (context, snapshot) {
+                  final name = (snapshot.data != null && snapshot.data!.isNotEmpty)
+                      ? snapshot.data!
+                      : (LocaleService.isEnglish ? 'Admin' : 'অ্যাডমিন');
+                  return Text(
+                    '${AppStrings.noticePostedBy}: $name',
                     style: AppTextStyles.bodyMedium,
-                  ),
-                ],
+                  );
+                },
               ),
               if (notice.createdAt != null) ...[
                 const SizedBox(height: 4),

@@ -10,9 +10,11 @@ import '../../../core/constants/firestore_paths.dart';
 import '../../../core/locale/locale_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/member.dart';
+import '../../directory/widgets/school_autocomplete_field.dart';
 import '../../../widgets/gradient_button.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../../../widgets/premium_card.dart';
@@ -22,7 +24,17 @@ import '../../../widgets/premium_card.dart';
 /// branch of the members security rule (role/status/authUid are protected).
 class EditProfileScreen extends StatefulWidget {
   final Member member;
-  const EditProfileScreen({super.key, required this.member});
+
+  /// True when shown as the one-time setup after a first Google sign-in:
+  /// no back button, a "complete your profile" title, and on save it clears
+  /// the setup flag and lets AuthWrapper route on instead of popping.
+  final bool isInitialSetup;
+
+  const EditProfileScreen({
+    super.key,
+    required this.member,
+    this.isInitialSetup = false,
+  });
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -33,7 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _nameEnController = TextEditingController(text: widget.member.nameEnglish);
   late final _schoolController = TextEditingController(text: widget.member.schoolName);
   late final _designationController = TextEditingController(text: widget.member.designation);
-  late final _qualificationController = TextEditingController(text: widget.member.qualification);
+  late final _phoneController = TextEditingController(text: widget.member.phone);
 
   final _firestoreService = FirestoreService();
   final _storageService = StorageService();
@@ -51,7 +63,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameEnController.dispose();
     _schoolController.dispose();
     _designationController.dispose();
-    _qualificationController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -101,14 +113,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'name_en': _nameEnController.text.trim(),
         'schoolName': _schoolController.text.trim(),
         'designation': _designationController.text.trim(),
-        'qualification': _qualificationController.text.trim(),
+        'phone': _phoneController.text.trim(),
         'bloodGroup': _bloodGroup ?? '',
         if (photoUrl != null) 'photoUrl': photoUrl,
+        // Clearing this lets AuthWrapper route a first-time Google user on
+        // into the app once they've completed setup.
+        if (widget.isInitialSetup) 'needsProfileSetup': false,
       };
 
       await _firestoreService.updateDoc(FirestorePaths.members, widget.member.id, updates);
 
       if (!mounted) return;
+
+      // Setup mode is shown by AuthWrapper as the root (nothing to pop);
+      // clearing the flag above makes it route to the shell on its own.
+      if (widget.isInitialSetup) {
+        AppSnackbar.success(AppStrings.profileUpdated);
+        return;
+      }
 
       if (photoError != null) {
         // Fields saved, but the photo specifically failed — surface that
@@ -159,13 +181,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back_rounded),
-                style: IconButton.styleFrom(backgroundColor: AppColors.surface),
-              ),
+              if (!widget.isInitialSetup)
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                ),
               const SizedBox(height: AppDimensions.md),
-              Text(AppStrings.editProfile, style: AppTextStyles.h1),
+              Text(
+                widget.isInitialSetup
+                    ? (LocaleService.isEnglish ? 'Complete your profile' : 'আপনার প্রোফাইল সম্পূর্ণ করুন')
+                    : AppStrings.editProfile,
+                style: AppTextStyles.h1,
+              ),
+              if (widget.isInitialSetup) ...[
+                const SizedBox(height: 6),
+                Text(
+                  LocaleService.isEnglish
+                      ? 'Add your school, designation, phone and blood group so members can find you.'
+                      : 'আপনার বিদ্যালয়, পদবী, ফোন ও রক্তের গ্রুপ যোগ করুন, যাতে সদস্যরা আপনাকে খুঁজে পান।',
+                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                ),
+              ],
               const SizedBox(height: AppDimensions.lg),
 
               Center(
@@ -231,10 +268,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       icon: Icons.person_outline_rounded,
                     ),
                     const SizedBox(height: AppDimensions.md),
-                    _Field(
+                    SchoolAutocompleteField(
                       controller: _schoolController,
                       label: LocaleService.isEnglish ? 'School' : 'বিদ্যালয়',
-                      icon: Icons.school_rounded,
                     ),
                     const SizedBox(height: AppDimensions.md),
                     _Field(
@@ -244,14 +280,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     const SizedBox(height: AppDimensions.md),
                     _Field(
-                      controller: _qualificationController,
-                      label: LocaleService.isEnglish ? 'Qualification' : 'শিক্ষাগত যোগ্যতা',
-                      icon: Icons.workspace_premium_rounded,
+                      controller: _phoneController,
+                      label: LocaleService.isEnglish ? 'Phone' : 'ফোন নম্বর',
+                      icon: Icons.phone_rounded,
+                      keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: AppDimensions.md),
                     Text(
                       LocaleService.isEnglish ? 'Blood group' : 'রক্তের গ্রুপ',
                       style: AppTextStyles.overline,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.favorite_rounded, size: 14, color: AppColors.danger),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            LocaleService.isEnglish
+                                ? 'Please add your blood group — it helps our association find a donor quickly in an emergency.'
+                                : 'অনুগ্রহ করে আপনার রক্তের গ্রুপ যোগ করুন — জরুরি প্রয়োজনে সমিতির সদস্যদের দ্রুত রক্তদাতা খুঁজে পেতে এটি সাহায্য করবে।',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.danger),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppDimensions.sm),
                     Wrap(
@@ -306,13 +359,20 @@ class _Field extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
+  final TextInputType? keyboardType;
 
-  const _Field({required this.controller, required this.label, required this.icon});
+  const _Field({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.keyboardType,
+  });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      keyboardType: keyboardType,
       style: AppTextStyles.bodyLarge,
       decoration: InputDecoration(
         labelText: label,

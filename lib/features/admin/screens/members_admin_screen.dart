@@ -9,11 +9,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/designation_rank.dart';
 import '../../../models/member.dart';
+import '../../directory/widgets/school_filter_field.dart';
 import '../../finance/screens/add_payment_screen.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../../../widgets/premium_card.dart';
 import '../../../widgets/status_badge.dart';
 import 'add_member_screen.dart';
+import 'edit_member_screen.dart';
 
 /// Admin-only: the full member roster — search, shareable Member IDs,
 /// export, and delete. Replaces the earlier IDs-only screen, which listed
@@ -28,8 +30,13 @@ class MembersAdminScreen extends StatefulWidget {
 
 class _MembersAdminScreenState extends State<MembersAdminScreen> {
   final _firestoreService = FirestoreService();
+  // Cached once (see HomeScreen): a per-build stream makes StreamBuilder flash
+  // back to empty and resets scroll on every rebuild.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
+      _firestoreService.watchAllMembers();
   final _searchController = TextEditingController();
   String _query = '';
+  String? _schoolFilter;
 
   @override
   void dispose() {
@@ -39,7 +46,7 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
 
   List<Member> _filter(List<Member> members) {
     final q = _query.trim().toLowerCase();
-    final result = q.isEmpty
+    var result = q.isEmpty
         ? [...members]
         : members
             .where((m) =>
@@ -49,12 +56,27 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                 m.memberCode.toLowerCase().contains(q))
             .toList();
 
+    if (_schoolFilter != null) {
+      result = result.where((m) => m.schoolName.trim() == _schoolFilter).toList();
+    }
+
     // Seniority order (head teacher, assistant head, senior, assistant),
     // not the alphabetical order the Firestore query returns.
     result.sort((a, b) => DesignationRank.compare(
           a.designation, a.name, b.designation, b.name,
         ));
     return result;
+  }
+
+  /// School -> member count, for the picker.
+  static Map<String, int> _schoolCounts(List<Member> members) {
+    final counts = <String, int>{};
+    for (final m in members) {
+      final s = m.schoolName.trim();
+      if (s.isEmpty) continue;
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
   }
 
   Future<void> _confirmRoleChange(Member member) async {
@@ -341,20 +363,9 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                 ],
               ),
               const SizedBox(height: AppDimensions.md),
-              TextField(
-                controller: _searchController,
-                onChanged: (value) => setState(() => _query = value),
-                decoration: InputDecoration(
-                  hintText: LocaleService.isEnglish
-                      ? 'Search by name, school or ID'
-                      : 'নাম, বিদ্যালয় বা আইডি দিয়ে খুঁজুন',
-                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
-                ),
-              ),
-              const SizedBox(height: AppDimensions.md),
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _firestoreService.watchAllMembers(),
+                  stream: _membersStream,
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(
@@ -375,6 +386,26 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // School dropdown sits above the search box (counts
+                        // come from the full roster so every school stays
+                        // listed even once one is selected).
+                        SchoolFilterField(
+                          counts: _schoolCounts(all),
+                          selected: _schoolFilter,
+                          onChanged: (s) => setState(() => _schoolFilter = s),
+                        ),
+                        const SizedBox(height: AppDimensions.sm),
+                        TextField(
+                          controller: _searchController,
+                          onChanged: (value) => setState(() => _query = value),
+                          decoration: InputDecoration(
+                            hintText: LocaleService.isEnglish
+                                ? 'Search by name, school or ID'
+                                : 'নাম, বিদ্যালয় বা আইডি দিয়ে খুঁজুন',
+                            prefixIcon: Icon(Icons.search_rounded, color: AppColors.primary),
+                          ),
+                        ),
+                        const SizedBox(height: AppDimensions.md),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -425,6 +456,13 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                                     member: filtered[index],
                                     onDelete: () => _confirmDelete(filtered[index]),
                                     onToggleAdmin: () => _confirmRoleChange(filtered[index]),
+                                    onEdit: () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => EditMemberScreen(
+                                          member: filtered[index],
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                         ),
@@ -500,11 +538,13 @@ class _MemberRow extends StatelessWidget {
   final Member member;
   final VoidCallback onDelete;
   final VoidCallback onToggleAdmin;
+  final VoidCallback onEdit;
 
   const _MemberRow({
     required this.member,
     required this.onDelete,
     required this.onToggleAdmin,
+    required this.onEdit,
   });
 
   void _copyCode(BuildContext context) {
@@ -585,6 +625,8 @@ class _MemberRow extends StatelessWidget {
             color: AppColors.surface,
             onSelected: (value) {
               switch (value) {
+                case 'edit':
+                  onEdit();
                 case 'copy':
                   _copyCode(context);
                 case 'role':
@@ -594,6 +636,16 @@ class _MemberRow extends StatelessWidget {
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_rounded, size: 18, color: AppColors.primary),
+                    const SizedBox(width: AppDimensions.sm),
+                    Text(LocaleService.isEnglish ? 'Edit info' : 'তথ্য সংশোধন'),
+                  ],
+                ),
+              ),
               if (hasCode)
                 PopupMenuItem(
                   value: 'copy',
