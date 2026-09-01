@@ -708,6 +708,24 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// Stamps "now" as the time this member last opened the Notices tab, so
+  /// notices created after this stop counting toward the tab's red badge.
+  /// No-op for an account with no member record.
+  Future<void> markNoticesSeen(String memberId) {
+    if (memberId.isEmpty) return Future.value();
+    return _db.collection(FirestorePaths.members).doc(memberId).update({
+      'lastSeenNoticeAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// As [markNoticesSeen], for the Polls tab.
+  Future<void> markPollsSeen(String memberId) {
+    if (memberId.isEmpty) return Future.value();
+    return _db.collection(FirestorePaths.members).doc(memberId).update({
+      'lastSeenPollAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Resolves an Auth uid to the member's name. Notices store the poster's
   /// uid, so the detail view uses this to show a name instead of a raw id.
   /// Returns null when no member is linked to that uid (e.g. a super admin

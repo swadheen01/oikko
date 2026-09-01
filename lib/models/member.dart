@@ -25,6 +25,11 @@ class Member {
   /// until it's cleared (on first profile save).
   final bool needsProfileSetup;
   final DateTime? createdAt;
+  /// When this member last opened the Notices / Polls tabs. Anything created
+  /// after these times counts as "new" and drives the red badge on those tabs
+  /// (see HomeShell). Null for a member who has never opened the tab.
+  final DateTime? lastSeenNoticeAt;
+  final DateTime? lastSeenPollAt;
   /// Short, human-shareable ID (derived from the Firestore doc ID — see
   /// `FirestoreService.createMemberByAdmin`) that a member can hand a
   /// teacher so they can request to link their login to this record,
@@ -51,6 +56,8 @@ class Member {
     this.isClaimed = false,
     this.needsProfileSetup = false,
     this.createdAt,
+    this.lastSeenNoticeAt,
+    this.lastSeenPollAt,
     this.memberCode = '',
   });
 
@@ -82,6 +89,8 @@ class Member {
       isClaimed: data['isClaimed'] ?? false,
       needsProfileSetup: data['needsProfileSetup'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      lastSeenNoticeAt: (data['lastSeenNoticeAt'] as Timestamp?)?.toDate(),
+      lastSeenPollAt: (data['lastSeenPollAt'] as Timestamp?)?.toDate(),
       memberCode: data['memberCode'] ?? '',
     );
   }

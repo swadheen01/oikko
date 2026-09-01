@@ -39,9 +39,10 @@ class _HomeShellState extends State<HomeShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _firestoreService = FirestoreService();
 
-  /// The Notices tab index — used both to route there and to know when to
-  /// clear the unread-notifications badge.
+  /// Tab indices — used both to route there and to know when to clear that
+  /// tab's red badge.
   static const _noticesIndex = 3;
+  static const _pollsIndex = 4;
 
   /// Live feed of this member's private notifications; the count of unread
   /// ones drives the red badge on the Notices tab. Null for accounts with no
@@ -51,14 +52,47 @@ class _HomeShellState extends State<HomeShell> {
           ? null
           : _firestoreService.watchMemberNotifications(widget.member.id);
 
+  // Broadcast feeds — a new notice or poll (created after the member last
+  // opened that tab) shows a red badge on its tab, the same way the personal
+  // inbox does. Cached once (see HomeScreen) so they don't flicker on rebuild.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _noticesStream =
+      _firestoreService.watchAllNotices();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _pollsStream =
+      _firestoreService.watchAllPolls();
+
+  // Baseline for "new since last seen". Seeded from the persisted marker so a
+  // badge survives an app restart, then bumped to now (and persisted) when the
+  // tab is opened. Falls back to app-open time for a member who's never opened
+  // it, so old items don't all show as new on first run.
+  late DateTime _seenNoticeAt = widget.member.lastSeenNoticeAt ?? DateTime.now();
+  late DateTime _seenPollAt = widget.member.lastSeenPollAt ?? DateTime.now();
+
   int _unreadInbox(QuerySnapshot<Map<String, dynamic>>? snap) =>
       (snap?.docs ?? const []).where((d) => d.data()['read'] != true).length;
 
+  /// Number of docs in [snap] created strictly after [since] — the count of
+  /// notices / polls the member hasn't seen yet.
+  int _countNewer(QuerySnapshot<Map<String, dynamic>>? snap, DateTime since) {
+    return (snap?.docs ?? const []).where((d) {
+      final ts = d.data()['createdAt'] as Timestamp?;
+      return ts != null && ts.toDate().isAfter(since);
+    }).length;
+  }
+
   void _onSelectTab(int index) {
-    setState(() => _currentIndex = index);
-    // Opening Notices clears the badge.
+    setState(() {
+      _currentIndex = index;
+      // Opening the tab clears its badge immediately; the persisted marker
+      // below keeps it cleared across restarts.
+      if (index == _noticesIndex) _seenNoticeAt = DateTime.now();
+      if (index == _pollsIndex) _seenPollAt = DateTime.now();
+    });
     if (index == _noticesIndex && widget.member.id.isNotEmpty) {
       _firestoreService.markMemberNotificationsRead(widget.member.id);
+      _firestoreService.markNoticesSeen(widget.member.id);
+    }
+    if (index == _pollsIndex && widget.member.id.isNotEmpty) {
+      _firestoreService.markPollsSeen(widget.member.id);
     }
   }
 
@@ -146,16 +180,29 @@ class _HomeShellState extends State<HomeShell> {
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _inboxStream,
               builder: (context, inboxSnap) {
-                // Unread count for the Notices badge — hidden while the
-                // Notices tab is the one open (it clears them on entry).
-                final unread = _currentIndex == _noticesIndex
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _noticesStream,
+                builder: (context, noticesSnap) {
+                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _pollsStream,
+                  builder: (context, pollsSnap) {
+                // Badge on Notices = unread personal inbox items + new
+                // broadcast notices; badge on Polls = new polls. Each is
+                // hidden while its own tab is open (it clears on entry).
+                final noticesBadge = _currentIndex == _noticesIndex
                     ? 0
-                    : _unreadInbox(inboxSnap.data);
+                    : _unreadInbox(inboxSnap.data) +
+                        _countNewer(noticesSnap.data, _seenNoticeAt);
+                final pollsBadge = _currentIndex == _pollsIndex
+                    ? 0
+                    : _countNewer(pollsSnap.data, _seenPollAt);
                 return Row(
               children: List.generate(_navItems.length, (index) {
                 final item = _navItems[index];
                 final isSelected = index == _currentIndex;
-                final badge = index == _noticesIndex ? unread : 0;
+                final badge = index == _noticesIndex
+                    ? noticesBadge
+                    : (index == _pollsIndex ? pollsBadge : 0);
                 return Expanded(
                   child: InkWell(
                     onTap: () => _onSelectTab(index),
@@ -230,6 +277,10 @@ class _HomeShellState extends State<HomeShell> {
                 );
               }),
                 );
+                  },
+                );
+                },
+              );
               },
             ),
           ),
