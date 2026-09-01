@@ -41,6 +41,20 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (mounted) setState(() => _isAdmin = isAdmin);
   }
 
+  /// Formats a stored ISO date (yyyy-MM-dd) as "d Mon yyyy". Returns '' for
+  /// an empty value (so the info card hides the row) and the raw string if it
+  /// isn't a parseable ISO date.
+  static String _fmtDate(String iso) {
+    if (iso.trim().isEmpty) return '';
+    final d = DateTime.tryParse(iso.trim());
+    if (d == null) return iso.trim();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
+  }
+
   Future<void> _launch(String url) async {
     final uri = Uri.parse(url);
     // externalApplication so a wa.me link hands off to the WhatsApp app
@@ -216,6 +230,21 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                     icon: Icons.email_rounded,
                     label: LocaleService.isEnglish ? 'Email' : 'ইমেইল',
                     value: member.email,
+                  ),
+                  _InfoRow(
+                    icon: Icons.tag_rounded,
+                    label: LocaleService.isEnglish ? 'Index number' : 'ইনডেক্স নম্বর',
+                    value: member.indexNumber,
+                  ),
+                  _InfoRow(
+                    icon: Icons.event_available_rounded,
+                    label: LocaleService.isEnglish ? 'Joining date' : 'যোগদানের তারিখ',
+                    value: _fmtDate(member.joiningDate),
+                  ),
+                  _InfoRow(
+                    icon: Icons.event_note_rounded,
+                    label: LocaleService.isEnglish ? 'MPO date' : 'এমপিও তারিখ',
+                    value: _fmtDate(member.mpoDate),
                   ),
                 ]),
               ]),

@@ -27,6 +27,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _indexController = TextEditingController();
+  DateTime? _joiningDate;
+  DateTime? _mpoDate;
 
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
@@ -44,6 +47,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _indexController.dispose();
     super.dispose();
   }
 
@@ -71,6 +75,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Flow A (planning doc section 4.9): try to auto-claim a pre-existing
       // admin-entered record with this phone number, matching it to this
       // new login. Falls back to a fresh pending record if none exists.
+      final index = _indexController.text.trim();
+      final joining = _joiningDate == null ? '' : _isoDate(_joiningDate!);
+      final mpo = _mpoDate == null ? '' : _isoDate(_mpoDate!);
+
       final existing = await _firestoreService.findUnclaimedMemberByPhone(
         phone,
       );
@@ -79,7 +87,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           memberId: existing.id,
           authUid: authUid,
         );
-        final updateData = {'email': _emailController.text.trim()};
+        final updateData = {
+          'email': _emailController.text.trim(),
+          if (index.isNotEmpty) 'indexNumber': index,
+          if (joining.isNotEmpty) 'joiningDate': joining,
+          if (mpo.isNotEmpty) 'mpoDate': mpo,
+        };
         if (nameEn.isNotEmpty) {
           updateData['nameEnglish'] = nameEn;
           updateData['name_en'] = nameEn;
@@ -91,6 +104,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           phone: phone,
           name: _nameController.text.trim(),
           nameEn: nameEn.isNotEmpty ? nameEn : null,
+          indexNumber: index,
+          joiningDate: joining,
+          mpoDate: mpo,
         );
       }
       // AuthWrapper's authStateChanges stream picks up the new login and
@@ -104,6 +120,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _isLoading = false;
         _errorMessage = AppStrings.errorGeneric;
+      });
+    }
+  }
+
+  static String _isoDate(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate({required bool joining}) async {
+    final now = DateTime.now();
+    final initial = (joining ? _joiningDate : _mpoDate) ?? DateTime(now.year - 5);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1970),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked != null) {
+      setState(() {
+        if (joining) {
+          _joiningDate = picked;
+        } else {
+          _mpoDate = picked;
+        }
       });
     }
   }
@@ -192,6 +231,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: AppDimensions.md),
               TextFormField(
+                controller: _indexController,
+                keyboardType: TextInputType.text,
+                decoration: InputDecoration(
+                  hintText: LocaleService.isEnglish ? 'Index number' : 'ইনডেক্স নম্বর',
+                  prefixIcon: Icon(Icons.tag_rounded, color: AppColors.primary),
+                ),
+                // optional
+              ),
+              const SizedBox(height: AppDimensions.md),
+              _DatePickerField(
+                label: LocaleService.isEnglish ? 'Joining date' : 'যোগদানের তারিখ',
+                icon: Icons.event_available_rounded,
+                value: _joiningDate,
+                onTap: () => _pickDate(joining: true),
+              ),
+              const SizedBox(height: AppDimensions.md),
+              _DatePickerField(
+                label: LocaleService.isEnglish ? 'MPO date' : 'এমপিও তারিখ',
+                icon: Icons.event_note_rounded,
+                value: _mpoDate,
+                onTap: () => _pickDate(joining: false),
+              ),
+              const SizedBox(height: AppDimensions.md),
+              TextFormField(
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
@@ -268,6 +331,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: AppDimensions.xl),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tappable field that opens a date picker; shows the chosen date or a hint.
+class _DatePickerField extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final DateTime? value;
+  final VoidCallback onTap;
+
+  const _DatePickerField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final has = value != null;
+    final text = has
+        ? '${value!.day.toString().padLeft(2, '0')}/${value!.month.toString().padLeft(2, '0')}/${value!.year}'
+        : label;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: AppColors.primary),
+          suffixIcon: Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
+        ),
+        child: Text(
+          has ? '$label: $text' : label,
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: has ? AppColors.textPrimary : AppColors.textSecondary,
           ),
         ),
       ),

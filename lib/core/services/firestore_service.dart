@@ -98,6 +98,9 @@ class FirestoreService {
     required String phone,
     required String name,
     String? nameEn,
+    String indexNumber = '',
+    String joiningDate = '',
+    String mpoDate = '',
   }) {
     final englishName = nameEn ?? '';
     return _db.collection(FirestorePaths.members).add({
@@ -115,6 +118,9 @@ class FirestoreService {
       'bloodGroup': '',
       'qualification': '',
       'email': '',
+      'indexNumber': indexNumber,
+      'joiningDate': joiningDate,
+      'mpoDate': mpoDate,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

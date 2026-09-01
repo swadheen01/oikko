@@ -11,6 +11,11 @@ class Member {
   final String qualification;
   final String phone;
   final String email;
+  /// Association index/registration number.
+  final String indexNumber;
+  /// Stored as ISO `yyyy-MM-dd`; shown formatted on the profile.
+  final String joiningDate;
+  final String mpoDate;
   final String role;
   final String status;
   final String? authUid;
@@ -37,6 +42,9 @@ class Member {
     this.qualification = '',
     this.phone = '',
     this.email = '',
+    this.indexNumber = '',
+    this.joiningDate = '',
+    this.mpoDate = '',
     this.role = 'member',
     this.status = 'pending',
     this.authUid,
@@ -65,6 +73,9 @@ class Member {
       qualification: data['qualification'] ?? '',
       phone: data['phone'] ?? '',
       email: data['email'] ?? '',
+      indexNumber: data['indexNumber'] ?? '',
+      joiningDate: data['joiningDate'] ?? '',
+      mpoDate: data['mpoDate'] ?? '',
       role: data['role'] ?? 'member',
       status: data['status'] ?? 'pending',
       authUid: data['authUid'],
@@ -87,6 +98,9 @@ class Member {
       'qualification': qualification,
       'phone': phone,
       'email': email,
+      'indexNumber': indexNumber,
+      'joiningDate': joiningDate,
+      'mpoDate': mpoDate,
       'role': role,
       'status': status,
       'authUid': authUid,
