@@ -109,8 +109,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           mpoDate: mpo,
         );
       }
-      // AuthWrapper's authStateChanges stream picks up the new login and
-      // routes to the EmailVerificationScreen automatically.
+      // AuthWrapper (underneath this pushed screen) has already switched to
+      // the EmailVerificationScreen the moment the account was created and
+      // signed in. This screen sits on top of it, so pop it off — otherwise
+      // it stays mounted with its spinner running and looks like a hang.
+      if (mounted) Navigator.of(context).pop();
     } on FirebaseAuthException catch (e) {
       setState(() {
         _isLoading = false;

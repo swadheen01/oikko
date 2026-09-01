@@ -157,8 +157,36 @@ class ProfileScreen extends StatelessWidget {
         value: member.email,
         icon: Icons.email_rounded,
       ),
+      _ProfileInfoTile(
+        label: LocaleService.isEnglish ? 'Index number' : 'ইনডেক্স নম্বর',
+        value: member.indexNumber,
+        icon: Icons.tag_rounded,
+      ),
+      _ProfileInfoTile(
+        label: LocaleService.isEnglish ? 'Joining date' : 'যোগদানের তারিখ',
+        value: _fmtDate(member.joiningDate),
+        icon: Icons.event_available_rounded,
+      ),
+      _ProfileInfoTile(
+        label: LocaleService.isEnglish ? 'MPO date' : 'এমপিও তারিখ',
+        value: _fmtDate(member.mpoDate),
+        icon: Icons.event_note_rounded,
+      ),
     ];
     return entries.where((tile) => tile.value.isNotEmpty).toList();
+  }
+
+  /// Formats a stored ISO date (yyyy-MM-dd) as "d Mon yyyy"; '' stays empty
+  /// (so the tile is hidden), and an unparseable value is shown as-is.
+  static String _fmtDate(String iso) {
+    if (iso.trim().isEmpty) return '';
+    final d = DateTime.tryParse(iso.trim());
+    if (d == null) return iso.trim();
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
 }
 
