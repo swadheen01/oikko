@@ -14,12 +14,18 @@ import '../../../core/theme/app_text_styles.dart';
 class SchoolFilterField extends StatelessWidget {
   /// School name -> number of members, used for the counts and ordering.
   final Map<String, int> counts;
+
+  /// True member total for the "All schools" tile. When null it falls back
+  /// to the sum of [counts] — but that undercounts any member with no school
+  /// assigned, so callers that know the real total should pass it.
+  final int? total;
   final String? selected;
   final ValueChanged<String?> onChanged;
 
   const SchoolFilterField({
     super.key,
     required this.counts,
+    this.total,
     required this.selected,
     required this.onChanged,
   });
@@ -34,6 +40,7 @@ class SchoolFilterField extends StatelessWidget {
       backgroundColor: Colors.transparent,
       builder: (_) => _SchoolSheet(
         counts: counts,
+        total: total,
         selected: selected,
         allLabel: _allLabel,
       ),
@@ -136,11 +143,13 @@ const String _kAll = '__all__';
 
 class _SchoolSheet extends StatefulWidget {
   final Map<String, int> counts;
+  final int? total;
   final String? selected;
   final String allLabel;
 
   const _SchoolSheet({
     required this.counts,
+    required this.total,
     required this.selected,
     required this.allLabel,
   });
@@ -172,7 +181,10 @@ class _SchoolSheetState extends State<_SchoolSheet> {
         return bySize != 0 ? bySize : a.compareTo(b);
       });
 
-    final total = widget.counts.values.fold<int>(0, (sum, n) => sum + n);
+    // Prefer the real total supplied by the caller; fall back to summing the
+    // per-school buckets (which misses members with no school assigned).
+    final total =
+        widget.total ?? widget.counts.values.fold<int>(0, (sum, n) => sum + n);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.75,

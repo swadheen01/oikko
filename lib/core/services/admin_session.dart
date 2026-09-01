@@ -20,6 +20,18 @@ import 'package:flutter/foundation.dart';
 class AdminSession {
   AdminSession._();
 
+  /// The super admin account's email (lower-cased). That account is not a
+  /// real teacher — by design it has no `members` record — so it must never
+  /// be counted or listed as a member. Any stray member doc carrying this
+  /// email (e.g. created by a first Google sign-in) is filtered out of the
+  /// directory and the member counts. See [isSuperAdminEmail].
+  static const String superAdminEmail = 'contactwith.swadheen@gmail.com';
+
+  /// True if [email] is the super admin's, ignoring case and surrounding
+  /// whitespace — use this to keep that account out of member listings.
+  static bool isSuperAdminEmail(String email) =>
+      email.trim().toLowerCase() == superAdminEmail;
+
   static final ValueNotifier<bool> isAdmin = ValueNotifier(false);
   static final ValueNotifier<bool> isSuperAdmin = ValueNotifier(false);
 

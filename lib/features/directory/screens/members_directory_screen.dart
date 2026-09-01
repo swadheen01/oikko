@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
+import '../../../core/services/admin_session.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -140,7 +141,12 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
             );
           }
 
-          final all = (snapshot.data?.docs ?? []).map(Member.fromDoc).toList();
+          // Exclude the super admin's stray member doc (it isn't a real
+          // teacher) so counts here match the home page.
+          final all = (snapshot.data?.docs ?? [])
+              .map(Member.fromDoc)
+              .where((m) => !AdminSession.isSuperAdminEmail(m.email))
+              .toList();
           final filtered = _filter(all);
 
           return CustomScrollView(
@@ -175,6 +181,9 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
                     // list, so the sheet still shows every school once one
                     // is already picked.
                     counts: _schoolCounts(all),
+                    // Real member total, so the "All schools" tile counts
+                    // members with no school assigned too.
+                    total: all.where((m) => m.isApproved).length,
                     selected: _schoolFilter,
                     onChanged: (s) => setState(() => _schoolFilter = s),
                   ),

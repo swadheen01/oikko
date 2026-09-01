@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
+import '../../../core/services/admin_session.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
@@ -105,7 +106,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _membersStream,
         builder: (context, snapshot) {
-          final members = (snapshot.data?.docs ?? []).map(Member.fromDoc).toList();
+          // The super admin isn't a real teacher (it has no member record by
+          // design); a stray member doc carrying its email is filtered out so
+          // it's never counted or listed as a member.
+          final members = (snapshot.data?.docs ?? [])
+              .map(Member.fromDoc)
+              .where((m) => !AdminSession.isSuperAdminEmail(m.email))
+              .toList();
           final approvedCount = members.where((m) => m.isApproved).length;
           final filtered = _filter(members);
 
@@ -147,6 +154,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 sliver: SliverToBoxAdapter(
                   child: SchoolFilterField(
                     counts: _schoolCounts(members),
+                    // The "All schools" tile shows the real member total, not
+                    // the sum of the per-school buckets — otherwise members
+                    // with no school assigned go uncounted and it disagrees
+                    // with the total shown on the home card.
+                    total: approvedCount,
                     selected: _schoolFilter,
                     onChanged: (s) => setState(() => _schoolFilter = s),
                   ),
