@@ -8,6 +8,7 @@ import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../core/locale/locale_service.dart';
+import '../../../core/services/auth_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/app_snackbar.dart';
@@ -46,6 +47,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final _schoolController = TextEditingController(text: widget.member.schoolName);
   late final _designationController = TextEditingController(text: widget.member.designation);
   late final _phoneController = TextEditingController(text: widget.member.phone);
+  late final _indexController = TextEditingController(text: widget.member.indexNumber);
+  late DateTime? _joiningDate = DateTime.tryParse(widget.member.joiningDate);
+  late DateTime? _mpoDate = DateTime.tryParse(widget.member.mpoDate);
 
   final _firestoreService = FirestoreService();
   final _storageService = StorageService();
@@ -64,7 +68,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _schoolController.dispose();
     _designationController.dispose();
     _phoneController.dispose();
+    _indexController.dispose();
     super.dispose();
+  }
+
+  static String _iso(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  Future<void> _pickDate({required bool joining}) async {
+    final now = DateTime.now();
+    final initial = (joining ? _joiningDate : _mpoDate) ?? DateTime(now.year - 5);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(1970),
+      lastDate: DateTime(now.year + 1),
+    );
+    if (picked != null) {
+      setState(() {
+        if (joining) {
+          _joiningDate = picked;
+        } else {
+          _mpoDate = picked;
+        }
+      });
+    }
   }
 
   Future<void> _pickPhoto() async {
@@ -114,6 +142,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'schoolName': _schoolController.text.trim(),
         'designation': _designationController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'indexNumber': _indexController.text.trim(),
+        'joiningDate': _joiningDate == null ? '' : _iso(_joiningDate!),
+        'mpoDate': _mpoDate == null ? '' : _iso(_mpoDate!),
         'bloodGroup': _bloodGroup ?? '',
         if (photoUrl != null) 'photoUrl': photoUrl,
         // Clearing this lets AuthWrapper route a first-time Google user on
@@ -181,12 +212,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (!widget.isInitialSetup)
-                IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  style: IconButton.styleFrom(backgroundColor: AppColors.surface),
-                ),
+              // In setup mode this screen is the root (nothing to pop), so
+              // "back" cancels setup by signing out → returns to login.
+              IconButton(
+                onPressed: widget.isInitialSetup
+                    ? () => AuthService().signOut()
+                    : () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.arrow_back_rounded),
+                style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                tooltip: widget.isInitialSetup
+                    ? (LocaleService.isEnglish ? 'Cancel & back to login' : 'বাতিল, লগইনে ফিরুন')
+                    : null,
+              ),
               const SizedBox(height: AppDimensions.md),
               Text(
                 widget.isInitialSetup
@@ -286,6 +323,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: AppDimensions.md),
+                    _Field(
+                      controller: _indexController,
+                      label: LocaleService.isEnglish ? 'Index number' : 'ইনডেক্স নম্বর',
+                      icon: Icons.tag_rounded,
+                    ),
+                    const SizedBox(height: AppDimensions.md),
+                    _DateField(
+                      label: LocaleService.isEnglish ? 'Joining date' : 'যোগদানের তারিখ',
+                      icon: Icons.event_available_rounded,
+                      value: _joiningDate,
+                      onTap: () => _pickDate(joining: true),
+                    ),
+                    const SizedBox(height: AppDimensions.md),
+                    _DateField(
+                      label: LocaleService.isEnglish ? 'MPO date' : 'এমপিও তারিখ',
+                      icon: Icons.event_note_rounded,
+                      value: _mpoDate,
+                      onTap: () => _pickDate(joining: false),
+                    ),
+                    const SizedBox(height: AppDimensions.md),
                     Text(
                       LocaleService.isEnglish ? 'Blood group' : 'রক্তের গ্রুপ',
                       style: AppTextStyles.overline,
@@ -348,6 +405,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: AppDimensions.xl),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tappable field that opens a date picker; shows the chosen date or a hint.
+class _DateField extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final DateTime? value;
+  final VoidCallback onTap;
+
+  const _DateField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final has = value != null;
+    final text = has
+        ? '${value!.day.toString().padLeft(2, '0')}/${value!.month.toString().padLeft(2, '0')}/${value!.year}'
+        : '';
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: AppColors.primary),
+          suffixIcon: Icon(Icons.calendar_today_rounded, size: 18, color: AppColors.textSecondary),
+        ),
+        child: Text(
+          has ? '$label: $text' : label,
+          style: AppTextStyles.bodyLarge.copyWith(
+            color: has ? AppColors.textPrimary : AppColors.textSecondary,
           ),
         ),
       ),

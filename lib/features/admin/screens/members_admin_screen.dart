@@ -308,87 +308,74 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
   Widget build(BuildContext context) {
     return GradientScaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppDimensions.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  // Shown as a tab as well as a pushed route; as a tab
-                  // there is nothing to pop, and popping would tear down
-                  // the admin shell and leave a black screen.
-                  if (Navigator.of(context).canPop()) ...[
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      style: IconButton.styleFrom(backgroundColor: AppColors.surface),
-                    ),
-                    const SizedBox(width: AppDimensions.sm),
-                  ],
-                  Expanded(
-                    child: Text(
-                      LocaleService.isEnglish ? 'Members' : 'সদস্য তালিকা',
-                      style: AppTextStyles.h2,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppDimensions.md),
-              // The global "+" speed-dial is hidden on this tab so it can't
-              // cover the roster, so the actions it offers live here instead.
-              Row(
-                children: [
-                  Expanded(
-                    child: _HeaderAction(
-                      icon: Icons.person_add_rounded,
-                      label: AppStrings.addMember,
-                      color: AppColors.accentViolet,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AddMemberScreen()),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppDimensions.sm),
-                  Expanded(
-                    child: _HeaderAction(
-                      icon: Icons.payments_rounded,
-                      label: AppStrings.addPayment,
-                      color: AppColors.accentTeal,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AddPaymentScreen()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppDimensions.md),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _membersStream,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Text(
-                          '${LocaleService.isEnglish ? 'Could not load members' : 'সদস্য তালিকা লোড হয়নি'}\n${snapshot.error}',
-                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.danger),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator(color: AppColors.primary));
-                    }
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _membersStream,
+          builder: (context, snapshot) {
+            final all = (snapshot.data?.docs ?? []).map(Member.fromDoc).toList();
+            final filtered = _filter(all);
+            final waiting = snapshot.connectionState == ConnectionState.waiting;
 
-                    final all = (snapshot.data?.docs ?? []).map(Member.fromDoc).toList();
-                    final filtered = _filter(all);
-
-                    return Column(
+            // Whole screen is one scroll view: the title, action buttons,
+            // school filter and search sit in a header sliver that scrolls
+            // up and out of the way, so the member list gets the full height
+            // to scroll through instead of a cramped fixed panel.
+            return CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppDimensions.lg, AppDimensions.lg, AppDimensions.lg, 0,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // School dropdown sits above the search box (counts
-                        // come from the full roster so every school stays
-                        // listed even once one is selected).
+                        Row(
+                          children: [
+                            if (Navigator.of(context).canPop()) ...[
+                              IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.arrow_back_rounded),
+                                style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                              ),
+                              const SizedBox(width: AppDimensions.sm),
+                            ],
+                            Expanded(
+                              child: Text(
+                                LocaleService.isEnglish ? 'Members' : 'সদস্য তালিকা',
+                                style: AppTextStyles.h2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppDimensions.md),
+                        // The global "+" speed-dial is hidden on this tab, so
+                        // the actions it offers live here instead.
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _HeaderAction(
+                                icon: Icons.person_add_rounded,
+                                label: AppStrings.addMember,
+                                color: AppColors.accentViolet,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const AddMemberScreen()),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppDimensions.sm),
+                            Expanded(
+                              child: _HeaderAction(
+                                icon: Icons.payments_rounded,
+                                label: AppStrings.addPayment,
+                                color: AppColors.accentTeal,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const AddPaymentScreen()),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppDimensions.md),
                         SchoolFilterField(
                           counts: _schoolCounts(all),
                           selected: _schoolFilter,
@@ -439,40 +426,70 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                           ],
                         ),
                         const SizedBox(height: AppDimensions.sm),
-                        Expanded(
-                          child: filtered.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    LocaleService.isEnglish
-                                        ? 'No members found'
-                                        : 'কোনো সদস্য পাওয়া যায়নি',
-                                    style: AppTextStyles.bodyMedium,
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) => const SizedBox(height: AppDimensions.sm),
-                                  itemBuilder: (context, index) => _MemberRow(
-                                    member: filtered[index],
-                                    onDelete: () => _confirmDelete(filtered[index]),
-                                    onToggleAdmin: () => _confirmRoleChange(filtered[index]),
-                                    onEdit: () => Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => EditMemberScreen(
-                                          member: filtered[index],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+
+                if (snapshot.hasError)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.xl),
+                      child: Center(
+                        child: Text(
+                          '${LocaleService.isEnglish ? 'Could not load members' : 'সদস্য তালিকা লোড হয়নি'}\n${snapshot.error}',
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.danger),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  )
+                else if (waiting && all.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.xl),
+                      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    ),
+                  )
+                else if (filtered.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.xl),
+                      child: Center(
+                        child: Text(
+                          LocaleService.isEnglish ? 'No members found' : 'কোনো সদস্য পাওয়া যায়নি',
+                          style: AppTextStyles.bodyMedium,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.xl,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => Padding(
+                          padding: const EdgeInsets.only(bottom: AppDimensions.sm),
+                          child: _MemberRow(
+                            member: filtered[index],
+                            onDelete: () => _confirmDelete(filtered[index]),
+                            onToggleAdmin: () => _confirmRoleChange(filtered[index]),
+                            onEdit: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => EditMemberScreen(member: filtered[index]),
+                              ),
+                            ),
+                          ),
+                        ),
+                        childCount: filtered.length,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

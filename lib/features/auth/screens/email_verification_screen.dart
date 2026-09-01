@@ -4,6 +4,7 @@ import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/constants/app_dimensions.dart';
+import '../../../core/locale/locale_service.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../widgets/gradient_button.dart';
 
@@ -48,13 +49,30 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
       body: Container(
         decoration: BoxDecoration(gradient: AppGradients.screenBackground),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppDimensions.lg),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 88,
+          child: Column(
+            children: [
+              // Root screen (shown by AuthWrapper), so there's nothing to
+              // pop — "back" signs out, which routes to the login screen.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimensions.sm),
+                  child: IconButton(
+                    onPressed: () => _authService.signOut(),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                    tooltip: LocaleService.isEnglish ? 'Back to login' : 'লগইনে ফিরুন',
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppDimensions.lg),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 88,
                   height: 88,
                   decoration: BoxDecoration(
                     gradient: AppGradients.primary,
@@ -91,8 +109,11 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                     style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
                   ),
                 ),
-              ],
-            ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

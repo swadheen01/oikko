@@ -24,13 +24,23 @@ class FirestoreService {
   Future<DocumentSnapshot<Map<String, dynamic>>?> findUnclaimedMemberByPhone(
     String e164Phone,
   ) async {
+    // Single-field query only (no composite index needed): combining
+    // `phone ==` with `authUid isNull` required a composite index that
+    // wasn't deployed, which made this throw right after account creation —
+    // registration failed with "something went wrong" even though the
+    // verification email had already gone out. The unclaimed check is done
+    // in code instead.
     final query = await _db
         .collection(FirestorePaths.members)
         .where('phone', isEqualTo: e164Phone)
-        .where('authUid', isNull: true)
-        .limit(1)
         .get();
-    return query.docs.isEmpty ? null : query.docs.first;
+    for (final doc in query.docs) {
+      final authUid = doc.data()['authUid'];
+      if (authUid == null || (authUid is String && authUid.isEmpty)) {
+        return doc;
+      }
+    }
+    return null;
   }
 
   /// Links the given member document to the newly authenticated user
