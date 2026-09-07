@@ -70,8 +70,14 @@ class NotificationService {
     if (memberId != null) {
       await _messaging.subscribeToTopic(memberTopic(memberId));
     }
+    // FCM topic subscriptions are sticky — a device stays subscribed forever
+    // until explicitly removed. Without the unsubscribe branch, a device
+    // that was ever an admin (even briefly) would keep receiving every
+    // admin-only push after being demoted.
     if (isAdmin) {
       await _messaging.subscribeToTopic(adminsTopic);
+    } else {
+      await _messaging.unsubscribeFromTopic(adminsTopic);
     }
     try {
       return await _messaging.getToken();

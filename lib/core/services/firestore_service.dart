@@ -748,13 +748,15 @@ class FirestoreService {
   /// complaint box, clearing the badge for all admins at once (shared
   /// mailbox, not a per-admin read state).
   Future<void> markComplaintsRead() async {
-    final snap = await _db
-        .collection(FirestorePaths.complaints)
-        .where('read', isEqualTo: false)
-        .get();
-    if (snap.docs.isEmpty) return;
+    // Filtered client-side, not with a `where('read', isEqualTo: false)`
+    // query: that equality filter never matches a doc where the field is
+    // simply absent (e.g. one submitted before this field existed), so such
+    // a doc would count as unread forever without ever being reachable here.
+    final snap = await _db.collection(FirestorePaths.complaints).get();
+    final unread = snap.docs.where((d) => d.data()['read'] != true).toList();
+    if (unread.isEmpty) return;
     final batch = _db.batch();
-    for (final d in snap.docs) {
+    for (final d in unread) {
       batch.update(d.reference, {'read': true});
     }
     await batch.commit();

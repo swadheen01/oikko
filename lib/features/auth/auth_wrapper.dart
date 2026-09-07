@@ -35,6 +35,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
   final _notificationService = NotificationService();
   bool _justVerified = false;
   String? _tokenRegisteredForMemberId;
+  // Tracked alongside the member id so a live admin demotion (marker
+  // deleted while the app stays open) re-runs push registration too — not
+  // just a change of member — and unsubscribes the device from the
+  // `admins` FCM topic right away instead of on the next app open.
+  bool? _tokenRegisteredIsAdmin;
 
   // Streams cached, not created in build(). A fresh stream on every rebuild
   // snaps its StreamBuilder back to the "waiting" state, which here renders
@@ -55,11 +60,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   /// Registers this device's FCM token against the member doc and
-  /// subscribes it to that member's personal topic, once per member (not
-  /// on every rebuild).
-  Future<void> _registerPushToken(Member member) async {
-    if (_tokenRegisteredForMemberId == member.id) return;
+  /// subscribes it to that member's personal topic and (if admin) the
+  /// `admins` topic. Re-runs when the member changes OR when their admin
+  /// status changes — not just once per member — so a live promotion or
+  /// demotion updates the topic subscription in this same session instead
+  /// of waiting for the next app open.
+  Future<void> _registerPushToken(Member member, {required bool isAdmin}) async {
+    if (_tokenRegisteredForMemberId == member.id &&
+        _tokenRegisteredIsAdmin == isAdmin) {
+      return;
+    }
     _tokenRegisteredForMemberId = member.id;
+    _tokenRegisteredIsAdmin = isAdmin;
 
     // An unlinked account has no member document to write a token onto and
     // no personal topic to subscribe to. It still gets broadcast notices
@@ -71,7 +83,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     final token = await _notificationService.init(
       memberId: isLinked ? member.id : null,
-      isAdmin: member.isAdmin,
+      isAdmin: isAdmin,
     );
     if (token != null && isLinked) {
       await _firestoreService.updateDoc(
@@ -103,6 +115,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
         if (user == null) {
           _justVerified = false;
           _tokenRegisteredForMemberId = null;
+          _tokenRegisteredIsAdmin = null;
           _memberStream = null;
           _memberStreamUid = null;
           AdminSession.clear();
@@ -176,7 +189,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                     status: 'approved',
                     role: isMarkerAdmin ? 'admin' : 'member',
                   );
-                  _registerPushToken(placeholder);
+                  _registerPushToken(placeholder, isAdmin: isMarkerAdmin);
                   return isMarkerAdmin
                       ? AdminShell(member: placeholder)
                       : HomeShell(member: placeholder, isLinked: false);
@@ -191,8 +204,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   return EditProfileScreen(member: member, isInitialSetup: true);
                 }
 
-                _registerPushToken(member);
-                if (member.isAdmin || isMarkerAdmin) {
+                final effectiveAdmin = member.isAdmin || isMarkerAdmin;
+                _registerPushToken(member, isAdmin: effectiveAdmin);
+                if (effectiveAdmin) {
                   return AdminShell(member: member);
                 }
                 return HomeShell(member: member);

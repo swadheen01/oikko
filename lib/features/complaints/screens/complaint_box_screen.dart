@@ -40,7 +40,7 @@ class _ComplaintBoxScreenState extends State<ComplaintBoxScreen> {
     super.initState();
     // Opening the box clears the shared unread badge for every admin.
     if (AdminSession.isAdmin.value) {
-      _firestoreService.markComplaintsRead();
+      _firestoreService.markComplaintsRead().catchError((_) {});
     }
   }
 
