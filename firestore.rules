@@ -161,11 +161,36 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Polls - read all, create/delete admin only, update (voting) any member
+    // Anonymous complaint box — any signed-in member may submit (no identity
+    // field is ever written, so a submission can't be traced back even by an
+    // admin); only admins may read or manage the collection.
+    match /complaints/{complaintId} {
+      allow read: if isAdmin();
+      allow create: if request.auth != null;
+      // Admins may only flip the shared `read` marker, not rewrite the
+      // complaint itself.
+      allow update: if isAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if isAdmin();
+    }
+
+    // Polls - read all, create/delete admin only. A member can only append
+    // their own uid and alter the vote payload; they cannot edit questions,
+    // reopen a closed poll, or change other members' voter IDs.
     match /polls/{pollId} {
       allow read: if request.auth != null;
       allow create: if isAdmin();
-      allow update: if request.auth != null;
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        resource.data.isActive == true &&
+        (resource.data.closesAt == null || resource.data.closesAt > request.time) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['votes', 'voterIds']) &&
+        request.resource.data.voterIds.size() == resource.data.voterIds.size() + 1 &&
+        request.resource.data.voterIds.hasAll(resource.data.voterIds) &&
+        request.resource.data.voterIds.hasAll([request.auth.uid]) &&
+        !resource.data.voterIds.hasAny([request.auth.uid])
+      );
       allow delete: if isAdmin();
     }
 

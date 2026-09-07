@@ -5,6 +5,7 @@ import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
 import '../../../core/services/admin_session.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/member_pdf_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/designation_rank.dart';
@@ -45,6 +46,21 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sharePdf(BuildContext context, List<Member> members) async {
+    final isEn = LocaleService.isEnglish;
+    try {
+      await MemberPdfService.shareMemberList(members);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${isEn ? 'Could not create PDF' : 'পিডিএফ তৈরি করা যায়নি'}: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
   List<Member> _filter(List<Member> members) {
@@ -169,6 +185,16 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      // Same member-list export the admin roster offers,
+                      // opened up here so an ordinary member can share/print
+                      // it too — it's only name/school/designation/phone,
+                      // nothing an admin-only view withholds.
+                      if (filtered.isNotEmpty)
+                        IconButton(
+                          onPressed: () => _sharePdf(context, filtered),
+                          icon: Icon(Icons.picture_as_pdf_rounded, color: AppColors.danger),
+                          tooltip: LocaleService.isEnglish ? 'Export as PDF' : 'পিডিএফ করুন',
+                        ),
                     ],
                   ),
                 ),

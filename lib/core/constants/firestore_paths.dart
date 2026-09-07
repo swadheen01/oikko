@@ -21,4 +21,9 @@ class FirestorePaths {
   /// from the app's built-in defaults; admins can edit each member (name,
   /// designation, photo). Doc IDs are fixed slots `c0`..`c4`.
   static const String committee = 'committee';
+
+  /// Anonymous complaint box. Any signed-in member may create a doc here;
+  /// nobody's identity is stored on it, and only admins may read the
+  /// collection back.
+  static const String complaints = 'complaints';
 }

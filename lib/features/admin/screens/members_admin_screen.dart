@@ -5,6 +5,7 @@ import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/member_pdf_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/designation_rank.dart';
@@ -167,6 +168,21 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
           content: Text('${LocaleService.isEnglish ? 'Could not change role' : 'ভূমিকা পরিবর্তন করা যায়নি'}: $e'),
           backgroundColor: AppColors.danger,
           duration: const Duration(seconds: 6),
+        ),
+      );
+    }
+  }
+
+  Future<void> _sharePdf(BuildContext context, List<Member> members) async {
+    final isEn = LocaleService.isEnglish;
+    try {
+      await MemberPdfService.shareMemberList(members);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${isEn ? 'Could not create PDF' : 'পিডিএফ তৈরি করা যায়নি'}: $e'),
+          backgroundColor: AppColors.danger,
         ),
       );
     }
@@ -420,6 +436,14 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
                                   icon: const Icon(Icons.table_chart_rounded, size: 16),
                                   label: Text(LocaleService.isEnglish ? 'Excel' : 'এক্সেল'),
                                   style: TextButton.styleFrom(foregroundColor: AppColors.accentTeal),
+                                ),
+                                TextButton.icon(
+                                  onPressed: filtered.isEmpty
+                                      ? null
+                                      : () => _sharePdf(context, filtered),
+                                  icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                                  label: Text(LocaleService.isEnglish ? 'PDF' : 'পিডিএফ'),
+                                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
                                 ),
                               ],
                             ),

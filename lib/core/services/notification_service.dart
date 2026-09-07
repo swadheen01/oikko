@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Handles FCM push notifications (planning doc section 4.6).
@@ -30,14 +33,25 @@ class NotificationService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
+  // FCM intentionally does not show a system notification while the app is
+  // in the foreground. Without this bridge a push is received but appears to
+  // do nothing until the user backgrounds the app, which looks like a broken
+  // notification system. A single process-wide listener avoids duplicate
+  // banners after auth state rebuilds.
+  static const _foregroundChannelId = 'general_notifications';
+  static final _localNotifications = FlutterLocalNotificationsPlugin();
+  static StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  static bool _localNotificationsReady = false;
+
   /// Call once after login: requests permission, subscribes this device to
   /// `all_members`, its personal topic (if `memberId` is known), and
   /// `admins` (if `isAdmin`), and returns the device's FCM token (for
   /// callers that also want to store it, e.g. for a future per-device
   /// send).
   Future<String?> init({String? memberId, bool isAdmin = false}) async {
-    // Web requires an extra VAPID key param; handled separately when
-    // we wire up Phase 3 (push notifications). Skipped here for MVP.
+    // Web requires a Firebase Web Push certificate (VAPID key) and a
+    // firebase-messaging-sw.js service worker. Do not pretend that a null
+    // token means web pushes are working; Android/iOS continue below.
     if (kIsWeb) return null;
 
     final settings = await _messaging.requestPermission(
@@ -50,6 +64,8 @@ class NotificationService {
       return null;
     }
 
+    await _configureForegroundPresentation();
+
     await _messaging.subscribeToTopic(allMembersTopic);
     if (memberId != null) {
       await _messaging.subscribeToTopic(memberTopic(memberId));
@@ -57,7 +73,56 @@ class NotificationService {
     if (isAdmin) {
       await _messaging.subscribeToTopic(adminsTopic);
     }
-    return _messaging.getToken();
+    try {
+      return await _messaging.getToken();
+    } catch (_) {
+      // A device without a working Play Services/FCM registration should not
+      // prevent an otherwise valid login or Firestore session.
+      return null;
+    }
+  }
+
+  Future<void> _configureForegroundPresentation() async {
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (_localNotificationsReady) return;
+    await _localNotifications.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        iOS: DarwinInitializationSettings(),
+      ),
+    );
+    _localNotificationsReady = true;
+
+    _foregroundSubscription ??= FirebaseMessaging.onMessage.listen((message) {
+      final notification = message.notification;
+      if (notification == null) return;
+      unawaited(
+        _localNotifications.show(
+          id: notification.hashCode & 0x7fffffff,
+          title: notification.title ?? 'Oikko',
+          body: notification.body ?? '',
+          notificationDetails: const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _foregroundChannelId,
+              'General notifications',
+              channelDescription: 'Notices and account updates from Oikko',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Stream<RemoteMessage> get onForegroundMessage => FirebaseMessaging.onMessage;

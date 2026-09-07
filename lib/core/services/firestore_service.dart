@@ -617,25 +617,37 @@ class FirestoreService {
     required int optionIndex,
     required String voterId,
   }) async {
-    final pollDoc = await _db
-        .collection(FirestorePaths.polls)
-        .doc(pollId)
-        .get();
-    if (!pollDoc.exists) return;
+    if (voterId.isEmpty) {
+      throw ArgumentError.value(voterId, 'voterId', 'must not be empty');
+    }
 
-    final data = pollDoc.data() ?? {};
-    final votes = Map<String, int>.from(data['votes'] ?? {});
-    final voterIds = List<String>.from(data['voterIds'] ?? []);
+    final reference = _db.collection(FirestorePaths.polls).doc(pollId);
+    await _db.runTransaction((transaction) async {
+      final pollDoc = await transaction.get(reference);
+      if (!pollDoc.exists) {
+        throw StateError('This poll no longer exists.');
+      }
 
-    if (voterIds.contains(voterId)) return; // Already voted
+      final data = pollDoc.data() ?? {};
+      final options = List<String>.from(data['options'] ?? const []);
+      final voterIds = List<String>.from(data['voterIds'] ?? const []);
+      final closesAt = (data['closesAt'] as Timestamp?)?.toDate();
+      final isActive = data['isActive'] == true;
 
-    final optionKey = optionIndex.toString();
-    votes[optionKey] = (votes[optionKey] ?? 0) + 1;
-    voterIds.add(voterId);
+      if (!isActive || (closesAt != null && !closesAt.isAfter(DateTime.now()))) {
+        throw StateError('Voting for this poll has ended.');
+      }
+      if (optionIndex < 0 || optionIndex >= options.length) {
+        throw RangeError.index(optionIndex, options, 'optionIndex');
+      }
+      if (voterIds.contains(voterId)) return;
 
-    await _db.collection(FirestorePaths.polls).doc(pollId).update({
-      'votes': votes,
-      'voterIds': voterIds,
+      final votes = Map<String, int>.from(data['votes'] ?? const {});
+      final optionKey = optionIndex.toString();
+      votes[optionKey] = (votes[optionKey] ?? 0) + 1;
+      voterIds.add(voterId);
+
+      transaction.update(reference, {'votes': votes, 'voterIds': voterIds});
     });
   }
 
@@ -703,6 +715,46 @@ class FirestoreService {
     if (unread.isEmpty) return;
     final batch = _db.batch();
     for (final d in unread) {
+      batch.update(d.reference, {'read': true});
+    }
+    await batch.commit();
+  }
+
+  // ----------- COMPLAINT BOX ---------
+
+  /// Submits an anonymous complaint. Deliberately writes no submitter
+  /// identity (no uid, no memberId) — see firestore.rules `complaints`.
+  Future<void> submitComplaint(String message) {
+    return _db.collection(FirestorePaths.complaints).add({
+      'message': message,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Admin-only: every submitted complaint, newest first.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchAllComplaints() {
+    return _db
+        .collection(FirestorePaths.complaints)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> deleteComplaint(String complaintId) {
+    return _db.collection(FirestorePaths.complaints).doc(complaintId).delete();
+  }
+
+  /// Marks every pending complaint read — called when any admin opens the
+  /// complaint box, clearing the badge for all admins at once (shared
+  /// mailbox, not a per-admin read state).
+  Future<void> markComplaintsRead() async {
+    final snap = await _db
+        .collection(FirestorePaths.complaints)
+        .where('read', isEqualTo: false)
+        .get();
+    if (snap.docs.isEmpty) return;
+    final batch = _db.batch();
+    for (final d in snap.docs) {
       batch.update(d.reference, {'read': true});
     }
     await batch.commit();

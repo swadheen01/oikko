@@ -10,6 +10,7 @@ import '../core/utils/app_snackbar.dart';
 import '../core/theme/theme_service.dart';
 import '../features/about/screens/about_screen.dart';
 import '../features/about/screens/developer_screen.dart';
+import '../features/complaints/screens/complaint_box_screen.dart';
 import '../features/directory/screens/blood_donors_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
 import '../models/member.dart';
@@ -58,6 +59,11 @@ class AppDrawer extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onSelectTab;
 
+  /// Unread count for the "Complaint box" tile — 0 for a member (they never
+  /// see the submitted list, so there's nothing to flag) and the shared
+  /// unread count for an admin.
+  final int complaintBadgeCount;
+
   const AppDrawer({
     super.key,
     this.member,
@@ -65,6 +71,7 @@ class AppDrawer extends StatelessWidget {
     this.actionItems = const [],
     this.currentIndex = -1,
     this.onSelectTab,
+    this.complaintBadgeCount = 0,
   });
 
   @override
@@ -139,6 +146,18 @@ class AppDrawer extends StatelessWidget {
                       Navigator.of(context).pop();
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
+                    },
+                  ),
+                  _DrawerTile(
+                    icon: Icons.report_problem_rounded,
+                    label: LocaleService.isEnglish ? 'Complaint box' : 'অভিযোগ বক্স',
+                    color: AppColors.warning,
+                    badgeCount: complaintBadgeCount,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ComplaintBoxScreen()),
                       );
                     },
                   ),
@@ -225,7 +244,10 @@ class _Header extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          ] else if (member != null) ...[
+            // A demoted admin (or any member) with no school on file used to
+            // fall straight into the "Admin" branch below regardless of
+            // their actual role — this checks the real role instead.
+          ] else if (member != null && member!.isAdmin) ...[
             const SizedBox(height: 2),
             Text(
               AppStrings.admin,

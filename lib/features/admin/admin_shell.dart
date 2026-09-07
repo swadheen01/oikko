@@ -53,7 +53,12 @@ class _AdminShellState extends State<AdminShell> {
   // `widget.member` — see the same fix/rationale in HomeShell.
   List<Widget> get _screens => [
     HomeScreen(member: widget.member, showSyncBanner: false),
-    const FinanceDashboardScreen(isAdmin: true),
+    FinanceDashboardScreen(
+      isAdmin: true,
+      personalMemberId: widget.member.id,
+      personalMemberName: widget.member.name,
+      personalMemberCode: widget.member.memberCode,
+    ),
     const MembersAdminScreen(),
     const NoticeCreateScreen(),
     // The Poll tab lists every poll (so admins can stop or delete them,
@@ -106,18 +111,29 @@ class _AdminShellState extends State<AdminShell> {
     ),
   ];
 
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _complaintsStream =
+      _firestoreService.watchAllComplaints();
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _firestoreService.watchPendingLinkRequests(),
       builder: (context, snapshot) {
         final pendingCount = snapshot.data?.docs.length ?? 0;
-        return _buildScaffold(context, pendingCount);
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _complaintsStream,
+          builder: (context, complaintsSnapshot) {
+            final unreadComplaints = (complaintsSnapshot.data?.docs ?? const [])
+                .where((d) => d.data()['read'] != true)
+                .length;
+            return _buildScaffold(context, pendingCount, unreadComplaints);
+          },
+        );
       },
     );
   }
 
-  Widget _buildScaffold(BuildContext context, int pendingCount) {
+  Widget _buildScaffold(BuildContext context, int pendingCount, int unreadComplaints) {
     return Scaffold(
       key: _scaffoldKey,
       floatingActionButton:
@@ -126,6 +142,7 @@ class _AdminShellState extends State<AdminShell> {
         member: widget.member,
         currentIndex: _currentIndex,
         onSelectTab: (index) => setState(() => _currentIndex = index),
+        complaintBadgeCount: unreadComplaints,
         navItems: List.generate(_navItems.length, (index) {
           final item = _navItems[index];
           return DrawerNavItem(

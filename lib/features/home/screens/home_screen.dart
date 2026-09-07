@@ -13,6 +13,7 @@ import '../../../models/member.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../../about/screens/about_screen.dart';
 import '../../account_linking/widgets/sync_payment_card.dart';
+import '../../complaints/screens/complaint_box_screen.dart';
 import '../../directory/widgets/member_card.dart';
 import '../../directory/widgets/school_filter_field.dart';
 import '../../directory/screens/member_profile_screen.dart';
@@ -55,6 +56,10 @@ class _HomeScreenState extends State<HomeScreen> {
   // time the widget rebuilds (e.g. when AuthWrapper's member doc stream ticks).
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
       _firestoreService.watchAllMembers();
+  // Only rendered for admins (see build()), but cached the same way as every
+  // other stream here to avoid a flicker if this screen rebuilds.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _complaintsStream =
+      _firestoreService.watchAllComplaints();
   final _searchController = TextEditingController();
   String _query = '';
   String? _bloodGroupFilter;
@@ -118,6 +123,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
           return CustomScrollView(
             slivers: [
+              // Admin-only: a brief alert when a new anonymous complaint has
+              // come in. Tapping it opens the complaint box, which marks
+              // every pending complaint read — so on return this card is
+              // simply gone, the same way the drawer badge clears.
+              SliverToBoxAdapter(
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: AdminSession.isAdmin,
+                  builder: (context, isAdmin, _) {
+                    if (!isAdmin) return const SizedBox.shrink();
+                    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: _complaintsStream,
+                      builder: (context, complaintsSnapshot) {
+                        final unread = (complaintsSnapshot.data?.docs ?? const [])
+                            .where((d) => d.data()['read'] != true)
+                            .length;
+                        if (unread == 0) return const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppDimensions.lg, AppDimensions.lg, AppDimensions.lg, 0,
+                          ),
+                          child: _ComplaintAlertCard(
+                            count: unread,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const ComplaintBoxScreen()),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimensions.lg, AppDimensions.lg, AppDimensions.lg, 0,
@@ -290,6 +327,58 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Brief admin-only alert that a new anonymous complaint is waiting. Tapping
+/// it opens the complaint box (which marks everything read), so the card
+/// simply isn't rendered again on return — that's the "gone when clicked".
+class _ComplaintAlertCard extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _ComplaintAlertCard({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = LocaleService.isEnglish;
+    return Material(
+      color: AppColors.warning.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppDimensions.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: AppColors.warning,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                ),
+                child: const Icon(Icons.report_problem_rounded, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: AppDimensions.sm),
+              Expanded(
+                child: Text(
+                  isEn
+                      ? '$count new complaint${count == 1 ? '' : 's'} — tap to view'
+                      : '$count টি নতুন অভিযোগ — দেখতে চাপুন',
+                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: AppColors.warning),
+            ],
+          ),
+        ),
       ),
     );
   }

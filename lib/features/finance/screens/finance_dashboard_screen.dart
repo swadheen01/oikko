@@ -40,6 +40,15 @@ class FinanceDashboardScreen extends StatefulWidget {
   /// than displaying a misleading ৳0.
   final bool isLinked;
 
+  /// The admin's *own* member id/name/code — an admin is a teacher too, so
+  /// alongside the association-wide total this screen can also show the
+  /// admin's personal dues, the same statement an ordinary member sees.
+  /// Null/empty when the admin account has no linked member record, in
+  /// which case the personal toggle simply doesn't appear.
+  final String? personalMemberId;
+  final String personalMemberName;
+  final String personalMemberCode;
+
   const FinanceDashboardScreen({
     super.key,
     this.isAdmin = false,
@@ -47,6 +56,9 @@ class FinanceDashboardScreen extends StatefulWidget {
     this.memberName = '',
     this.memberCode = '',
     this.isLinked = true,
+    this.personalMemberId,
+    this.personalMemberName = '',
+    this.personalMemberCode = '',
   }) : assert(isAdmin || memberId != null, 'memberId is required when isAdmin is false');
 
   @override
@@ -55,18 +67,37 @@ class FinanceDashboardScreen extends StatefulWidget {
 
 class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
   final _financeService = FinanceService();
-  // Cached once (see HomeScreen): per-build streams make StreamBuilder flash
-  // back to empty (totals briefly ৳0) and reset scroll on every rebuild.
-  late final Stream<QuerySnapshot<Map<String, dynamic>>> _txStream = isAdmin
-      ? _financeService.watchAllTransactions()
-      : _financeService.watchMemberTransactions(memberId!);
+
+  // When an admin (who also has their own member record) switches to "My
+  // statement", the screen behaves exactly like an ordinary member's finance
+  // tab — scoped to their own transactions, read-only, no clear-all.
+  bool _showPersonal = false;
+
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _membersStream =
       FirestoreService().watchAllMembers();
 
-  bool get isAdmin => widget.isAdmin;
-  String? get memberId => widget.memberId;
-  String get memberName => widget.memberName;
-  String get memberCode => widget.memberCode;
+  // The transaction stream depends on the personal/total toggle, so unlike
+  // the other cached streams in this app it's rebuilt on demand rather than
+  // fixed at construction — but still only when the mode actually changes,
+  // not on every build (the same flicker/scroll-reset problem otherwise).
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _txStream;
+  bool? _txStreamIsAdmin;
+  Stream<QuerySnapshot<Map<String, dynamic>>> get _currentTxStream {
+    if (_txStreamIsAdmin != isAdmin || _txStream == null) {
+      _txStreamIsAdmin = isAdmin;
+      _txStream = isAdmin
+          ? _financeService.watchAllTransactions()
+          : _financeService.watchMemberTransactions(memberId!);
+    }
+    return _txStream!;
+  }
+
+  bool get isAdmin => widget.isAdmin && !_showPersonal;
+  bool get canShowPersonalToggle =>
+      widget.isAdmin && (widget.personalMemberId?.isNotEmpty ?? false);
+  String? get memberId => _showPersonal ? widget.personalMemberId : widget.memberId;
+  String get memberName => _showPersonal ? widget.personalMemberName : widget.memberName;
+  String get memberCode => _showPersonal ? widget.personalMemberCode : widget.memberCode;
   bool get isLinked => widget.isLinked;
 
   Future<void> _sharePdf(
@@ -224,7 +255,7 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
 
     return GradientScaffold(
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _txStream,
+        stream: _currentTxStream,
         builder: (context, snapshot) {
           // Without this, a failed query (a missing composite index is the
           // usual cause) renders as a perfectly normal-looking zero
@@ -272,6 +303,16 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     Text(isAdmin ? AppStrings.finance : AppStrings.myStatement, style: AppTextStyles.h1),
+                    // An admin is a teacher too — this switches between the
+                    // association-wide total and their own personal dues,
+                    // the same statement an ordinary member sees.
+                    if (canShowPersonalToggle) ...[
+                      const SizedBox(height: AppDimensions.md),
+                      _PersonalToggle(
+                        showPersonal: _showPersonal,
+                        onChanged: (v) => setState(() => _showPersonal = v),
+                      ),
+                    ],
                     const SizedBox(height: AppDimensions.md),
                     BalanceHeroCard(
                       balance: balance,
@@ -364,6 +405,77 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// Two-way switch between the association-wide total and the admin's own
+/// personal statement, shown only when the admin has a linked member record.
+class _PersonalToggle extends StatelessWidget {
+  final bool showPersonal;
+  final ValueChanged<bool> onChanged;
+
+  const _PersonalToggle({required this.showPersonal, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEn = LocaleService.isEnglish;
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ToggleSegment(
+              label: isEn ? 'Total finance' : 'মোট হিসাব',
+              selected: !showPersonal,
+              onTap: () => onChanged(false),
+            ),
+          ),
+          Expanded(
+            child: _ToggleSegment(
+              label: isEn ? 'My finance' : 'আমার হিসাব',
+              selected: showPersonal,
+              onTap: () => onChanged(true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleSegment extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ToggleSegment({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.primary : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusPill),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: selected ? AppColors.textOnPrimary : AppColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ),
     );
   }
