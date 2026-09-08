@@ -62,29 +62,19 @@ In your Firestore `members` collection, set `role: "admin"` for authorized users
 
 To revoke admin access, delete both the `admins/{uid}` doc and reset `role` back to `"member"`.
 
-### Super admin (invisible owner account)
+### Every admin has equal, full power
 
-Add `superAdmin: true` (boolean) to an `admins/{uid}` document to make that account a **super admin**.
+There is no separate "super admin" tier — that two-tier model was removed. Every account with an `admins/{uid}` marker document has the same full power as every other admin:
 
-Ordinary admins can still promote and demote each other — that's normal association business. What a super admin's marker gets is **protection**: no ordinary admin can edit or delete it, so nobody can lock the owner out of their own app. Nor can an admin create a *new* super admin, which would otherwise let them hand themselves the protected tier through an accomplice.
+- Publishing/deleting notices, creating/stopping/deleting polls, logging payments and expenses
+- Promoting or demoting **any** other admin, including the one who promoted them
+- "Clear all" on payments and notices (irreversible, association-wide)
 
-Super admin only:
+All of this is managed entirely from inside the app (Members tab → tap a member → "Make admin"/"Remove admin") once at least one admin exists. **The very first admin still has to be created by hand**, the same way as before (Step 4 above) — the app can't grant the first admin its own permissions, since nobody with admin rights exists yet to click the button. After that first one, no Firestore console visit is ever needed again for admin management.
 
-- Editing or deleting a super admin's marker document
-- Creating another super admin
-- "Clear all" on payments and notices
+There's still one owner-identity account (`contactwith.swadheen@gmail.com`, referenced as `AdminSession.superAdminEmail` in code) that's excluded from member counts/listings because it intentionally has no `members` document — but that's just an identity filter for display purposes, not a permission tier. It has no power beyond any other admin.
 
-**The account stays invisible to everyone else.** It normally has *no* `members` document at all, which means:
-
-- It never appears in the member directory or any admin list — those read the `members` collection
-- No other admin can discover it: the `admins` collection is not listable, and the rules let each caller read only their **own** marker document
-- The app routes on the marker doc, not on a member record's `role`, so a super admin reaches the admin panel without having a member profile
-
-Set it up once in the Firebase Console: create `admins/{your-uid}` with `superAdmin: true`. Do **not** create a `members` record for that account.
-
-⚠️ Nobody can create a super admin from inside the app, by design. If the last super admin marker is lost, restore it from the Firebase Console.
-
-**Known limit:** the "Clear all" restriction is enforced in the UI only. Security rules can't distinguish a bulk delete from a normal one — an ordinary admin may still delete records individually, which is legitimate admin work. The marker-document protections above *are* enforced server-side.
+⚠️ Because every admin is now fully equal, any admin can remove any other admin — including the very first one. There is no protected account and no built-in recovery beyond the Firebase Console (create a fresh `admins/{uid}` doc there if everyone gets locked out).
 
 **How to tell if this step is missing:** the admin panel shows a red "Admin permissions are not set up" banner at the top, with the exact UID to use as the document ID. Without that banner, the only symptom is a `permission-denied` error on each admin action separately (publishing a notice, adding a payment, approving a link request), which looks like several unrelated bugs instead of one missing document.
 

@@ -23,7 +23,12 @@ import 'member_profile_screen.dart';
 /// The admin equivalent is MembersAdminScreen, which adds Member IDs,
 /// export and delete on top of the same list.
 class MembersDirectoryScreen extends StatefulWidget {
-  const MembersDirectoryScreen({super.key});
+  /// Pre-applies a school filter — used when arriving here from the home
+  /// tab's "View all N members" button, so a school already picked there
+  /// carries over instead of landing back on the unfiltered full roster.
+  final String? initialSchoolFilter;
+
+  const MembersDirectoryScreen({super.key, this.initialSchoolFilter});
 
   @override
   State<MembersDirectoryScreen> createState() => _MembersDirectoryScreenState();
@@ -38,7 +43,7 @@ class _MembersDirectoryScreenState extends State<MembersDirectoryScreen> {
   final _searchController = TextEditingController();
   String _query = '';
   String? _bloodGroupFilter;
-  String? _schoolFilter;
+  late String? _schoolFilter = widget.initialSchoolFilter;
 
   static const _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 

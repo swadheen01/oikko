@@ -5,7 +5,6 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/locale/locale_service.dart';
-import '../../../core/services/admin_session.dart';
 import '../../../core/services/finance_pdf_service.dart';
 import '../../../core/services/finance_service.dart';
 import '../../../core/services/firestore_service.dart';
@@ -343,12 +342,10 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                             label: Text(LocaleService.isEnglish ? 'PDF' : 'পিডিএফ'),
                             style: TextButton.styleFrom(foregroundColor: AppColors.primary),
                           ),
-                        // Wiping every payment record is irreversible
-                        // and affects every member, so it's reserved
-                        // for the super admin.
-                        if (isAdmin &&
-                            transactions.isNotEmpty &&
-                            AdminSession.isSuperAdmin.value)
+                        // Wiping every payment record is irreversible and
+                        // affects every member, but every admin has equal,
+                        // full power now — no protected tier reserves this.
+                        if (isAdmin && transactions.isNotEmpty)
                           TextButton.icon(
                             onPressed: () => _confirmClearAll(context, financeService),
                             icon: const Icon(Icons.delete_sweep_rounded, size: 18),

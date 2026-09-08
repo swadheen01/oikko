@@ -146,10 +146,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             final docs = memberSnapshot.data?.docs ?? [];
 
             // Admin status comes from the `admins/{uid}` marker, not from a
-            // member record's `role`. That matters for a super admin, who
-            // deliberately has no member document at all so they stay out
-            // of the directory — reading `role` there would find nothing
-            // and drop them into the ordinary member shell.
+            // member record's `role`. That matters for the owner account,
+            // which deliberately has no member document at all so it stays
+            // out of the directory — reading `role` there would find
+            // nothing and drop it into the ordinary member shell.
             //
             // Watched live (not read once) so demoting an admin — deleting
             // their marker — drops their app out of the admin panel within
@@ -162,13 +162,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
                   return const AuthLoadingView();
                 }
                 final isMarkerAdmin = adminSnapshot.data?.exists ?? false;
-                final isSuper = isMarkerAdmin &&
-                    adminSnapshot.data?.data()?['superAdmin'] == true;
-                // Keep the global notifiers other screens read in sync, but
-                // after this frame — setting them mid-build would try to mark
+                // Keep the global notifier other screens read in sync, but
+                // after this frame — setting it mid-build would try to mark
                 // already-built listeners dirty during build.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  AdminSession.set(admin: isMarkerAdmin, superAdmin: isSuper);
+                  AdminSession.set(admin: isMarkerAdmin);
                 });
 
                 // Not linked to a member record. Rather than locking the

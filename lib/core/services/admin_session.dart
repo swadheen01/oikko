@@ -1,39 +1,39 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-/// Whether the signed-in account is an admin / super admin, held for the
-/// session so screens can gate UI without each one doing its own read.
+/// Whether the signed-in account is an admin, held for the session so
+/// screens can gate UI without each one doing its own read.
 ///
 /// This is a *display* gate only — the real enforcement is in
 /// firestore.rules, which rejects the same writes server-side. Never rely
 /// on this alone to protect anything.
 ///
-/// Admin status is now driven by a **live** subscription to the caller's own
+/// Admin status is driven by a **live** subscription to the caller's own
 /// `admins/{uid}` marker doc ([watch]), not a one-shot read. That means when
 /// an admin is demoted (their marker deleted) their app drops out of the
 /// admin panel within seconds — no log out / log back in required.
 ///
-/// A super admin is an `admins/{uid}` doc with `superAdmin: true`. That
-/// account usually has no `members` record at all, so it doesn't appear in
-/// the directory, and no other admin can discover it: the `admins`
-/// collection isn't listable and each caller may read only their own doc.
+/// Every admin has equal, full power — there is no separate protected
+/// "super admin" tier. Any admin can promote or demote any other admin
+/// (including whoever promoted them), and every irreversible action
+/// (clearing all finance records, all notices) is available to every admin.
 class AdminSession {
   AdminSession._();
 
-  /// The super admin account's email (lower-cased). That account is not a
-  /// real teacher — by design it has no `members` record — so it must never
-  /// be counted or listed as a member. Any stray member doc carrying this
-  /// email (e.g. created by a first Google sign-in) is filtered out of the
-  /// directory and the member counts. See [isSuperAdminEmail].
+  /// The association's original owner account (no `members` record by
+  /// design, so it must never be counted or listed as a member). Any stray
+  /// member doc carrying this email (e.g. created by a first Google
+  /// sign-in) is filtered out of the directory and the member counts. This
+  /// is just an identity check, unrelated to admin permissions — that
+  /// account has no special power beyond any other admin.
   static const String superAdminEmail = 'contactwith.swadheen@gmail.com';
 
-  /// True if [email] is the super admin's, ignoring case and surrounding
+  /// True if [email] is the owner account's, ignoring case and surrounding
   /// whitespace — use this to keep that account out of member listings.
   static bool isSuperAdminEmail(String email) =>
       email.trim().toLowerCase() == superAdminEmail;
 
   static final ValueNotifier<bool> isAdmin = ValueNotifier(false);
-  static final ValueNotifier<bool> isSuperAdmin = ValueNotifier(false);
 
   static String? _uid;
   static Stream<DocumentSnapshot<Map<String, dynamic>>>? _markerStream;
@@ -53,18 +53,16 @@ class AdminSession {
     return _markerStream!;
   }
 
-  /// Push the latest marker state into the notifiers other screens read.
+  /// Push the latest marker state into the notifier other screens read.
   /// Only writes on an actual change, so it's safe to call from a post-frame
   /// callback without spamming listeners.
-  static void set({required bool admin, required bool superAdmin}) {
+  static void set({required bool admin}) {
     if (isAdmin.value != admin) isAdmin.value = admin;
-    if (isSuperAdmin.value != superAdmin) isSuperAdmin.value = superAdmin;
   }
 
   static void clear() {
     _uid = null;
     _markerStream = null;
     isAdmin.value = false;
-    isSuperAdmin.value = false;
   }
 }

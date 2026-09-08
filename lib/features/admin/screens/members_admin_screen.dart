@@ -111,8 +111,8 @@ class _MembersAdminScreenState extends State<MembersAdminScreen> {
         content: Text(
           makeAdmin
               ? (LocaleService.isEnglish
-                  ? '${member.name} will be able to publish notices, log payments, approve requests, delete members, and change other people’s roles.'
-                  : '${member.name} নোটিশ প্রকাশ, পেমেন্ট যোগ, অনুরোধ অনুমোদন, সদস্য মুছে ফেলা এবং অন্যদের ভূমিকা পরিবর্তন করতে পারবেন।')
+                  ? '${member.name} will get full admin power — equal to every other admin: publish notices, log payments, approve requests, delete members, permanently clear all finance/notice records, and promote or remove any other admin (including you).'
+                  : '${member.name} সম্পূর্ণ অ্যাডমিন ক্ষমতা পাবেন — অন্য সব অ্যাডমিনের সমান: নোটিশ প্রকাশ, পেমেন্ট যোগ, অনুরোধ অনুমোদন, সদস্য মুছে ফেলা, সব হিসাব/নোটিশ স্থায়ীভাবে মুছে ফেলা, এবং যেকোনো অ্যাডমিনকে (আপনাকেও) সরানো বা নতুন অ্যাডমিন করা।')
               : (LocaleService.isEnglish
                   ? '${member.name} will lose all admin access and go back to being a regular member.'
                   : '${member.name} সব অ্যাডমিন অধিকার হারাবেন এবং সাধারণ সদস্য হয়ে যাবেন।'),

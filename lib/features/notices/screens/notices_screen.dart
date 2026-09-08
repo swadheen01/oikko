@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/services/admin_session.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
@@ -143,9 +142,9 @@ class _NoticesScreenState extends State<NoticesScreen> {
                 Expanded(
                   child: Text(AppStrings.notices, style: AppTextStyles.h1),
                 ),
-                // Same reasoning as the finance clear-all: irreversible
-                // and association-wide, so super admin only.
-                if (isAdmin && AdminSession.isSuperAdmin.value)
+                // Irreversible and association-wide, but every admin has
+                // equal, full power now — no protected tier reserves this.
+                if (isAdmin)
                   TextButton.icon(
                     onPressed: () => _deleteAll(context, firestoreService),
                     icon: const Icon(Icons.delete_sweep_rounded, size: 18),

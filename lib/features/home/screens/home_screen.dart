@@ -299,7 +299,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       AppDimensions.lg, 0, AppDimensions.lg, AppDimensions.md,
                     ),
                     sliver: SliverToBoxAdapter(
-                      child: _ViewAllMembersButton(total: filtered.length),
+                      child: _ViewAllMembersButton(
+                        total: filtered.length,
+                        schoolFilter: _schoolFilter,
+                      ),
                     ),
                   )
                 else
@@ -485,7 +488,8 @@ class _AboutCard extends StatelessWidget {
 /// filter, rather than expanding an ever-growing list on the landing page.
 class _ViewAllMembersButton extends StatelessWidget {
   final int total;
-  const _ViewAllMembersButton({required this.total});
+  final String? schoolFilter;
+  const _ViewAllMembersButton({required this.total, this.schoolFilter});
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +500,9 @@ class _ViewAllMembersButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const MembersDirectoryScreen()),
+          MaterialPageRoute(
+            builder: (_) => MembersDirectoryScreen(initialSchoolFilter: schoolFilter),
+          ),
         ),
         child: Container(
           padding: const EdgeInsets.symmetric(
