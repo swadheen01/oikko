@@ -164,17 +164,42 @@ class FirestoreService {
     return _db.collection(FirestorePaths.members).orderBy('name').snapshots();
   }
 
-  /// Flow B (section 4.9): unclaimed records for the "Find My Profile" search.
-  Future<QuerySnapshot<Map<String, dynamic>>> searchUnclaimedByName(
+  /// Flow B (section 4.9): unclaimed records for the "Find My Profile"
+  /// search \u2014 matches by name, English name, or school.
+  ///
+  /// Firestore can't do a substring/"contains" query, and the previous
+  /// `startAt`/`endAt` version only matched a *prefix* of the `name` field
+  /// (so typing anything but the very first letters of someone's name, or
+  /// a school name at all, matched nothing \u2014 the search always came back
+  /// empty). Instead this fetches every unclaimed record (a single-field
+  /// filter needs no composite index) and matches client-side. The
+  /// unclaimed pool is always small \u2014 only members who've never connected
+  /// an account \u2014 so this stays cheap regardless of roster size.
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> searchUnclaimedByName(
     String query,
-  ) {
-    return _db
+  ) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return [];
+
+    final snap = await _db
         .collection(FirestorePaths.members)
         .where('isClaimed', isEqualTo: false)
-        .orderBy('name')
-        .startAt([query])
-        .endAt(['$query\uf8ff'])
         .get();
+
+    final matches = snap.docs.where((doc) {
+      final data = doc.data();
+      final name = (data['name'] as String? ?? '').toLowerCase();
+      final nameEn = ((data['nameEnglish'] as String?) ??
+              (data['name_en'] as String?) ??
+              '')
+          .toLowerCase();
+      final school = (data['schoolName'] as String? ?? '').toLowerCase();
+      return name.contains(q) || nameEn.contains(q) || school.contains(q);
+    }).toList();
+
+    matches.sort((a, b) =>
+        (a.data()['name'] as String? ?? '').compareTo(b.data()['name'] as String? ?? ''));
+    return matches;
   }
 
   /// Admin bulk-adds a member record ahead of that teacher ever opening the
@@ -433,16 +458,43 @@ class FirestoreService {
         .snapshots();
   }
 
+  /// Fields a member fills in themselves (at registration or via Edit
+  /// Profile) that should win over whatever an admin typed when
+  /// pre-creating the record — see [approveLinkRequest] and `claimMember`'s
+  /// callers for why: the admin doc exists mainly to anchor payment
+  /// history, not to hold the authoritative profile.
+  static const _selfProvidedFields = [
+    'name', 'nameEnglish', 'name_en', 'phone', 'email',
+    'schoolName', 'designation', 'bloodGroup', 'qualification',
+    'indexNumber', 'joiningDate', 'mpoDate', 'photoUrl',
+  ];
+
+  /// Non-empty [_selfProvidedFields] from [selfData], to overlay onto the
+  /// target member doc during a merge.
+  static Map<String, dynamic> _selfInfoOverlay(Map<String, dynamic> selfData) {
+    final overlay = <String, dynamic>{};
+    for (final key in _selfProvidedFields) {
+      final value = selfData[key];
+      if (value is String && value.trim().isNotEmpty) {
+        overlay[key] = value;
+      }
+    }
+    return overlay;
+  }
+
   /// Admin approves a link request: attaches the requester's auth uid to
   /// the target member doc (mirrors the auto-claim in `claimMember`) and
   /// marks the request approved.
   ///
   /// A member can only ever be linked to one auth account at a time
   /// (`watchMemberByAuthUid` assumes exactly one match). If this user is
-  /// already linked to a *different* member doc — e.g. an empty
-  /// self-registered record created before they had a real Member ID to
-  /// enter — that old doc is unlinked first so the two don't end up
-  /// pointing at the same account simultaneously.
+  /// already linked to a *different* member doc — typically a
+  /// self-registered record they filled in themselves before an admin gave
+  /// them a Member ID to connect — that old doc is unlinked. Its own
+  /// profile info (name, email, blood group, index/joining/MPO dates,
+  /// photo, etc.) is merged onto the target doc first — taking priority
+  /// over whatever the admin entered there — instead of being silently
+  /// discarded when the account switches over to the admin-created record.
   Future<void> approveLinkRequest({
     required String requestId,
     required String memberId,
@@ -455,15 +507,20 @@ class FirestoreService {
         .get();
 
     final batch = _db.batch();
+    final targetUpdate = <String, dynamic>{
+      'authUid': requestedByUid,
+      'isClaimed': true,
+    };
     for (final doc in existing.docs) {
       if (doc.id != memberId) {
+        targetUpdate.addAll(_selfInfoOverlay(doc.data()));
         batch.update(doc.reference, {'authUid': null, 'isClaimed': false});
       }
     }
-    batch.update(_db.collection(FirestorePaths.members).doc(memberId), {
-      'authUid': requestedByUid,
-      'isClaimed': true,
-    });
+    batch.update(
+      _db.collection(FirestorePaths.members).doc(memberId),
+      targetUpdate,
+    );
     batch.update(_db.collection(FirestorePaths.linkRequests).doc(requestId), {
       'status': 'approved',
       'reviewedBy': reviewedBy,

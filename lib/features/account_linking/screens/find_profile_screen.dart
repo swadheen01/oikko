@@ -1,9 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/firestore_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/locale/locale_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -50,8 +52,8 @@ class _FindProfileScreenState extends State<FindProfileScreen> {
       return const [];
     }
 
-    final snapshot = await _firestoreService.searchUnclaimedByName(q);
-    return snapshot.docs.map(Member.fromDoc).toList();
+    final docs = await _firestoreService.searchUnclaimedByName(q);
+    return docs.map(Member.fromDoc).toList();
   }
 
   void _goToMatch(Member member) {
@@ -64,6 +66,50 @@ class _FindProfileScreenState extends State<FindProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// The id of the search result currently being sent, so its own tap
+  /// shows a spinner while the rest of the list stays interactive.
+  String? _sendingFor;
+
+  /// Tapping a name/school search result sends the connect request right
+  /// away — unlike the Member ID path (`_goToMatch`), which still shows the
+  /// confirm screen since a code lookup can only ever return one exact
+  /// match anyway. Finding yourself by name in a search result list is
+  /// already the confirmation; a second "is this you?" screen would just be
+  /// extra friction for the person this search exists to help — those
+  /// without a code from the admin.
+  Future<void> _sendRequestDirectly(Member member) async {
+    setState(() => _sendingFor = member.id);
+    try {
+      await _firestoreService.createLinkRequest(
+        memberId: member.id,
+        requestedByUid: widget.currentUserUid,
+        requestedPhone: widget.currentPhone,
+        requestedEmail: FirebaseAuth.instance.currentUser?.email ?? '',
+      );
+      try {
+        await NotificationService().sendToAdmins(
+          title: LocaleService.isEnglish ? 'New connection request' : 'নতুন সংযোগ অনুরোধ',
+          body: LocaleService.isEnglish
+              ? '${member.name} wants to connect their account.'
+              : '${member.name} তার একাউন্ট সংযুক্ত করতে চান।',
+        );
+      } catch (_) {}
+      if (!mounted) return;
+      AppSnackbar.success(AppStrings.linkRequestSent);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _sendingFor = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${LocaleService.isEnglish ? 'Could not send request' : 'অনুরোধ পাঠানো যায়নি'}: $e',
+          ),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 
   Future<void> _lookupByCode() async {
@@ -218,8 +264,11 @@ class _FindProfileScreenState extends State<FindProfileScreen> {
                         const SizedBox(height: AppDimensions.sm),
                     itemBuilder: (context, index) {
                       final member = members[index];
+                      final isSending = _sendingFor == member.id;
                       return PremiumCard(
-                        onTap: () => _goToMatch(member),
+                        onTap: _sendingFor == null
+                            ? () => _sendRequestDirectly(member)
+                            : null,
                         child: Row(
                           children: [
                             CircleAvatar(
@@ -257,10 +306,20 @@ class _FindProfileScreenState extends State<FindProfileScreen> {
                                 ],
                               ),
                             ),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              color: AppColors.primary,
-                            ),
+                            if (isSending)
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            else
+                              Icon(
+                                Icons.send_rounded,
+                                color: AppColors.primary,
+                              ),
                           ],
                         ),
                       );

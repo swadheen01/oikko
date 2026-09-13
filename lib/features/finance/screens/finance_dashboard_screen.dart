@@ -91,6 +91,20 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
     return _txStream!;
   }
 
+  /// Once a Firestore listener errors (e.g. a transient permission-denied
+  /// right at the moment an account gets linked, before the write has fully
+  /// propagated), it terminates for good — Firestore does not retry a dead
+  /// subscription on its own. Without this, the cached `_txStream` would
+  /// keep returning that same dead stream forever, leaving the error on
+  /// screen permanently. Called from the error state's retry button to
+  /// force a fresh subscription.
+  void _retryTxStream() {
+    setState(() {
+      _txStream = null;
+      _txStreamIsAdmin = null;
+    });
+  }
+
   bool get isAdmin => widget.isAdmin && !_showPersonal;
   bool get canShowPersonalToggle =>
       widget.isAdmin && (widget.personalMemberId?.isNotEmpty ?? false);
@@ -278,6 +292,16 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                       '${snapshot.error}',
                       style: AppTextStyles.caption,
                       textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppDimensions.lg),
+                    // A dead Firestore listener never recovers on its own —
+                    // this forces a fresh subscription instead of leaving
+                    // the error on screen until the app is fully restarted.
+                    TextButton.icon(
+                      onPressed: _retryTxStream,
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(LocaleService.isEnglish ? 'Try again' : 'আবার চেষ্টা করুন'),
+                      style: TextButton.styleFrom(foregroundColor: AppColors.primary),
                     ),
                   ],
                 ),
