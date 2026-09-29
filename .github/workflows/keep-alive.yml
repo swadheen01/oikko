@@ -1,0 +1,49 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Runs at 04:00 UTC every 2 days (Supabase pauses after 7 days of inactivity)
+    - cron: "0 4 */2 * *"
+  # Allows manual execution from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  ping:
+    name: Ping Supabase Services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Storage & Auth APIs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Use GitHub Secrets if set, otherwise fallback to app's configured public keys
+          URL="${SUPABASE_URL:-https://ykamplbqfzedmhwhaucj.supabase.co}"
+          KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrYW1wbGJxZnplZG1od2hhdWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNDc4MDgsImV4cCI6MjEwMjgyMzgwOH0.vh69LDQhBG8fcK_5w3ArqmpOcyjKCi6zXs2Pt4gd-jw}"
+
+          echo "Pinging Supabase at: $URL"
+
+          # 1. Ping Storage API: queries postgres database (storage.buckets) directly
+          echo "Pinging Storage API..."
+          STORAGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            "$URL/storage/v1/bucket")
+
+          echo "Storage API HTTP Status: $STORAGE_STATUS"
+
+          # 2. Ping Auth Health API
+          echo "Pinging Auth Health API..."
+          AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $KEY" \
+            "$URL/auth/v1/health")
+
+          echo "Auth API HTTP Status: $AUTH_STATUS"
+
+          # Check if at least one service responded with 200 OK
+          if [ "$STORAGE_STATUS" -eq 200 ] || [ "$AUTH_STATUS" -eq 200 ]; then
+            echo "SUCCESS: Supabase received activity ping. Inactivity timer reset!"
+          else
+            echo "ERROR: Unexpected responses (Storage: $STORAGE_STATUS, Auth: $AUTH_STATUS)"
+            exit 1
+          fi
