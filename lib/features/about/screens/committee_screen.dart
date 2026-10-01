@@ -15,13 +15,20 @@ import 'committee_edit_screen.dart';
 /// doc (slot `docId`) so admins can edit it; falls back to the bundled
 /// default when no doc/override exists yet.
 class CommitteeMember {
-  final String docId; // fixed slot: c0..c4
+  final String docId; // fixed slot: c0..c4, or cx_<timestamp> for dynamic
   final String nameBn;
   final String nameEn;
   final String designationBn;
   final String designationEn;
   final String assetImage; // bundled fallback photo
   final String photoUrl; // admin-uploaded override ('' = use asset)
+  /// True for members added dynamically by admin (not part of kAllCommitteeDefaults).
+  final bool isDynamic;
+
+  /// True when an admin has soft-deleted this built-in slot. The Firestore doc
+  /// stores `hidden: true`; the hard-coded default stays but is excluded from
+  /// every rendered list. Dynamic members (isDynamic) are hard-deleted instead.
+  final bool isHidden;
 
   const CommitteeMember({
     required this.docId,
@@ -31,6 +38,8 @@ class CommitteeMember {
     required this.designationEn,
     required this.assetImage,
     this.photoUrl = '',
+    this.isDynamic = false,
+    this.isHidden = false,
   });
 
   // Fall back to the Bengali value when the English one is blank (most of the
@@ -38,7 +47,8 @@ class CommitteeMember {
   // the English).
   String get name =>
       (LocaleService.isEnglish && nameEn.isNotEmpty) ? nameEn : nameBn;
-  String get designation => (LocaleService.isEnglish && designationEn.isNotEmpty)
+  String get designation =>
+      (LocaleService.isEnglish && designationEn.isNotEmpty)
       ? designationEn
       : designationBn;
 
@@ -46,8 +56,9 @@ class CommitteeMember {
 
   /// Only valid when [hasPhoto] is true; the tile shows an initial avatar
   /// otherwise.
-  ImageProvider get image =>
-      photoUrl.isNotEmpty ? NetworkImage(photoUrl) : AssetImage(assetImage) as ImageProvider;
+  ImageProvider get image => photoUrl.isNotEmpty
+      ? NetworkImage(photoUrl)
+      : AssetImage(assetImage) as ImageProvider;
 
   /// Applies a Firestore doc's values on top of the built-in default,
   /// keeping the default for any field the doc leaves blank.
@@ -65,16 +76,19 @@ class CommitteeMember {
       designationEn: pick('designationEn', designationEn),
       assetImage: assetImage,
       photoUrl: (d['photoUrl'] as String?)?.trim() ?? '',
+      isDynamic: isDynamic,
+      // Respect the soft-delete flag written by the admin delete action.
+      isHidden: (d['hidden'] as bool?) ?? false,
     );
   }
 
   Map<String, dynamic> toMap() => {
-        'nameBn': nameBn,
-        'nameEn': nameEn,
-        'designationBn': designationBn,
-        'designationEn': designationEn,
-        'photoUrl': photoUrl,
-      };
+    'nameBn': nameBn,
+    'nameEn': nameEn,
+    'designationBn': designationBn,
+    'designationEn': designationEn,
+    'photoUrl': photoUrl,
+  };
 }
 
 /// The branch line shown under every bearer's designation.
@@ -148,42 +162,114 @@ const List<ExtraCommitteeMember> kExtraCommittee = [
   ExtraCommitteeMember(name: 'মোঃ শফিকুল ইসলাম', designation: 'সহ-সভাপতি'),
   ExtraCommitteeMember(name: 'মোঃ আব্দুস সজীব খান', designation: 'সহ-সভাপতি'),
   ExtraCommitteeMember(name: 'মোহাম্মাদ আবু ছাদেক', designation: 'সহ-সভাপতি'),
-  ExtraCommitteeMember(name: 'মোঃ জাহিদুল ইসলাম চৌধুরী', designation: 'সহ-সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'মোঃ জাহিদুল ইসলাম চৌধুরী',
+    designation: 'সহ-সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'মোঃ নুরুল ইসলাম', designation: 'সহ-সম্পাদক'),
   ExtraCommitteeMember(name: 'মোঃ সেলিম তালুকদার', designation: 'সহ-সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ শাব্বির আহমেদ শিবলী', designation: 'সহ-সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'মোঃ শাব্বির আহমেদ শিবলী',
+    designation: 'সহ-সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'মোঃ জাকির হোসেন', designation: 'সহ-সম্পাদক'),
-  ExtraCommitteeMember(name: 'প্রাণকৃষ্ণ দাশ তালুকদার', designation: 'অর্থ সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ আব্দুল্লাহ মিয়া', designation: 'প্রচার সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ আজহারুল ইসলাম', designation: 'সহ-প্রচার সম্পাদক'),
-  ExtraCommitteeMember(name: 'দীপক কুমার দাস', designation: 'শিক্ষা বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ দুলাল মিয়া', designation: 'সহ-শিক্ষা বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ জাহিদুল ইসলাম', designation: 'সাংস্কৃতিক সম্পাদক'),
-  ExtraCommitteeMember(name: 'আবু মুসা আনসারী', designation: 'সহ-সাংস্কৃতিক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ হুমায়ূন কবির', designation: 'সমাজকল্যাণ সম্পাদক'),
-  ExtraCommitteeMember(name: 'গৌর চাঁদ দাস', designation: 'সহ-সমাজকল্যাণ সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'প্রাণকৃষ্ণ দাশ তালুকদার',
+    designation: 'অর্থ সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ আব্দুল্লাহ মিয়া',
+    designation: 'প্রচার সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ আজহারুল ইসলাম',
+    designation: 'সহ-প্রচার সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'দীপক কুমার দাস',
+    designation: 'শিক্ষা বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ দুলাল মিয়া',
+    designation: 'সহ-শিক্ষা বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ জাহিদুল ইসলাম',
+    designation: 'সাংস্কৃতিক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'আবু মুসা আনসারী',
+    designation: 'সহ-সাংস্কৃতিক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ হুমায়ূন কবির',
+    designation: 'সমাজকল্যাণ সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'গৌর চাঁদ দাস',
+    designation: 'সহ-সমাজকল্যাণ সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'মোঃ কবির মিয়া', designation: 'দপ্তর সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ জুন্নুন মিয়া', designation: 'সহ-দপ্তর সম্পাদক'),
-  ExtraCommitteeMember(name: 'মাহমুদুর রহমান', designation: 'ধর্ম বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'দীপক কুমার ঘোষ', designation: 'সহ-ধর্ম বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'দীপু রানী সরকার', designation: 'মহিলা বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোছাঃ মিলন বেগম', designation: 'সহ-মহিলা বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ শিবলী আহমেদ', designation: 'ক্রীড়া বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোছাঃ জেসমিন চৌধুরী', designation: 'সহ: ক্রীড়া বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ সাইদুর রহমান চৌধুরী', designation: 'স্কাউট সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'মোঃ জুন্নুন মিয়া',
+    designation: 'সহ-দপ্তর সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মাহমুদুর রহমান',
+    designation: 'ধর্ম বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'দীপক কুমার ঘোষ',
+    designation: 'সহ-ধর্ম বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'দীপু রানী সরকার',
+    designation: 'মহিলা বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোছাঃ মিলন বেগম',
+    designation: 'সহ-মহিলা বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ শিবলী আহমেদ',
+    designation: 'ক্রীড়া বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোছাঃ জেসমিন চৌধুরী',
+    designation: 'সহ: ক্রীড়া বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'মোঃ সাইদুর রহমান চৌধুরী',
+    designation: 'স্কাউট সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'ছাহমিদা বেগম', designation: 'সহ-স্কাউট সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ আলাউদ্দিন মিয়া', designation: 'আইন বিষয়ক সম্পাদক'),
-  ExtraCommitteeMember(name: 'বেনু রঞ্জন দাস', designation: 'সহ-আইন বিষয়ক সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'মোঃ আলাউদ্দিন মিয়া',
+    designation: 'আইন বিষয়ক সম্পাদক',
+  ),
+  ExtraCommitteeMember(
+    name: 'বেনু রঞ্জন দাস',
+    designation: 'সহ-আইন বিষয়ক সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'ইত্তেফাক হোসেন', designation: 'প্রকাশনা সম্পাদক'),
-  ExtraCommitteeMember(name: 'মোঃ ছাইফুজ্জামান', designation: 'সহ-প্রকাশনা সম্পাদক'),
+  ExtraCommitteeMember(
+    name: 'মোঃ ছাইফুজ্জামান',
+    designation: 'সহ-প্রকাশনা সম্পাদক',
+  ),
   ExtraCommitteeMember(name: 'অঞ্জন দেব', designation: 'সম্মানিত সদস্য'),
   ExtraCommitteeMember(name: 'মোঃ জামাল মিয়া', designation: 'সম্মানিত সদস্য'),
   ExtraCommitteeMember(name: 'মোঃ আব্দুল তাজ', designation: 'সম্মানিত সদস্য'),
   ExtraCommitteeMember(name: 'মোঃ শফিকুল আলম', designation: 'সম্মানিত সদস্য'),
   ExtraCommitteeMember(name: 'ফখর উদ্দিন আহমদ', designation: 'সম্মানিত সদস্য'),
-  ExtraCommitteeMember(name: 'মোঃ আহমেদ ইমতিয়াজ বশির', designation: 'সম্মানিত সদস্য'),
+  ExtraCommitteeMember(
+    name: 'মোঃ আহমেদ ইমতিয়াজ বশির',
+    designation: 'সম্মানিত সদস্য',
+  ),
   ExtraCommitteeMember(name: 'মোঃ ইছহাক আহমদ', designation: 'সম্মানিত সদস্য'),
-  ExtraCommitteeMember(name: 'অনিল চন্দ্র বিশ্ব শর্মা', designation: 'সম্মানিত সদস্য'),
+  ExtraCommitteeMember(
+    name: 'অনিল চন্দ্র বিশ্ব শর্মা',
+    designation: 'সম্মানিত সদস্য',
+  ),
   ExtraCommitteeMember(name: 'মোঃ তোফাজ্জুল হোসেন', designation: 'সদস্য'),
   ExtraCommitteeMember(name: 'বিনয় ভূষণ বিশ্বাস', designation: 'সদস্য'),
   ExtraCommitteeMember(name: 'মোঃ আবিদুর রহমান', designation: 'সদস্য'),
@@ -216,20 +302,67 @@ Stream<QuerySnapshot<Map<String, dynamic>>> watchCommittee() =>
     FirestoreService().collection(FirestorePaths.committee).snapshots();
 
 /// Merges the defaults with any Firestore overrides, preserving slot order.
-List<CommitteeMember> mergeCommittee(QuerySnapshot<Map<String, dynamic>>? snap) {
+/// Dynamic members (docId starts with 'cx_') are appended after the 55 defaults.
+/// Hidden members (isHidden=true, set by admin delete on a built-in slot) are
+/// excluded from the returned list — they still exist in Firestore but are not
+/// shown anywhere in the UI.
+List<CommitteeMember> mergeCommittee(
+  QuerySnapshot<Map<String, dynamic>>? snap,
+) {
   final byId = <String, Map<String, dynamic>>{
     for (final doc in snap?.docs ?? const []) doc.id: doc.data(),
   };
-  return [
+
+  // Static 55-member list merged with any Firestore overrides for those slots.
+  // Hidden slots (soft-deleted by admin) are filtered out here.
+  final staticList = [
     for (final d in kAllCommitteeDefaults)
-      byId.containsKey(d.docId) ? d.withOverrides(byId[d.docId]!) : d,
+      if (byId.containsKey(d.docId)) d.withOverrides(byId[d.docId]!) else d,
+  ].where((m) => !m.isHidden).toList();
+
+  // Dynamic members: docs whose ID starts with 'cx_' (admin-added extras).
+  final dynamicList = [
+    for (final doc in snap?.docs ?? const [])
+      if (doc.id.startsWith('cx_'))
+        CommitteeMember(
+          docId: doc.id,
+          nameBn: (doc.data()['nameBn'] as String?) ?? '',
+          nameEn: (doc.data()['nameEn'] as String?) ?? '',
+          designationBn: (doc.data()['designationBn'] as String?) ?? '',
+          designationEn: (doc.data()['designationEn'] as String?) ?? '',
+          assetImage: '',
+          photoUrl: (doc.data()['photoUrl'] as String?) ?? '',
+          isDynamic: true,
+        ),
   ];
+
+  return [...staticList, ...dynamicList];
 }
 
 /// "সম্পূর্ণ তালিকা" — the whole elected committee with photos, reached from
-/// the About page. Admins get a per-member edit button.
+/// the About page. Admins get a per-member edit button and an "Add member" FAB.
 class CommitteeScreen extends StatelessWidget {
   const CommitteeScreen({super.key});
+
+  void _openAddScreen(BuildContext context) {
+    // A blank placeholder member is passed; CommitteeEditScreen generates the
+    // real doc ID when isNew=true.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CommitteeEditScreen(
+          isNew: true,
+          member: const CommitteeMember(
+            docId: '',
+            nameBn: '',
+            nameEn: '',
+            designationBn: '',
+            designationEn: '',
+            assetImage: '',
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -247,14 +380,56 @@ class CommitteeScreen extends StatelessWidget {
                 style: IconButton.styleFrom(backgroundColor: AppColors.surface),
               ),
               const SizedBox(height: AppDimensions.md),
-              Text(
-                isEn ? 'Full committee' : 'সম্পূর্ণ তালিকা',
-                style: AppTextStyles.h1,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                isEn ? 'Executive committee' : 'কার্যনির্বাহী পরিষদ',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isEn ? 'Full committee' : 'সম্পূর্ণ তালিকা',
+                          style: AppTextStyles.h1,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isEn ? 'Executive committee' : 'কার্যনির্বাহী পরিষদ',
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Admin-only "Add member" button next to the title.
+                  ValueListenableBuilder<bool>(
+                    valueListenable: AdminSession.isAdmin,
+                    builder: (context, isAdmin, _) {
+                      if (!isAdmin) return const SizedBox.shrink();
+                      return FilledButton.icon(
+                        onPressed: () => _openAddScreen(context),
+                        icon: const Icon(Icons.person_add_rounded, size: 18),
+                        label: Text(isEn ? 'Add' : 'যোগ করুন'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          textStyle: AppTextStyles.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppDimensions.radiusMd,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: AppDimensions.lg),
               StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -264,9 +439,14 @@ class CommitteeScreen extends StatelessWidget {
                   return ValueListenableBuilder<bool>(
                     valueListenable: AdminSession.isAdmin,
                     builder: (context, isAdmin, _) {
+                      // Split into the static 55 and any dynamically-added extras.
+                      final staticCount = kAllCommitteeDefaults.length;
+                      final staticMembers = members.take(staticCount).toList();
+                      final dynamicMembers = members.skip(staticCount).toList();
+
                       return Column(
                         children: [
-                          for (var i = 0; i < members.length; i++) ...[
+                          for (var i = 0; i < staticMembers.length; i++) ...[
                             // Separator between the five photographed office
                             // bearers and the rest of the committee.
                             if (i == kOfficeBearerCount) ...[
@@ -276,18 +456,42 @@ class CommitteeScreen extends StatelessWidget {
                             PremiumCard(
                               child: CommitteeMemberTile(
                                 serial: i + 1,
-                                member: members[i],
+                                member: staticMembers[i],
                                 onEdit: isAdmin
                                     ? () => Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                CommitteeEditScreen(member: members[i]),
+                                        MaterialPageRoute(
+                                          builder: (_) => CommitteeEditScreen(
+                                            member: staticMembers[i],
                                           ),
-                                        )
+                                        ),
+                                      )
                                     : null,
                               ),
                             ),
                             const SizedBox(height: AppDimensions.sm),
+                          ],
+                          // Dynamic (admin-added) members section.
+                          if (dynamicMembers.isNotEmpty) ...[
+                            const _DynamicMemberDivider(),
+                            const SizedBox(height: AppDimensions.md),
+                            for (var i = 0; i < dynamicMembers.length; i++) ...[
+                              PremiumCard(
+                                child: CommitteeMemberTile(
+                                  serial: staticCount + i + 1,
+                                  member: dynamicMembers[i],
+                                  onEdit: isAdmin
+                                      ? () => Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => CommitteeEditScreen(
+                                              member: dynamicMembers[i],
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(height: AppDimensions.sm),
+                            ],
                           ],
                         ],
                       );
@@ -332,7 +536,10 @@ class CommitteeMemberTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 2),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                width: 2,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.shadowContact,
@@ -356,7 +563,9 @@ class CommitteeMemberTile extends StatelessWidget {
             child: Text(
               serial != null
                   ? '$serial'
-                  : (member.name.isNotEmpty ? member.name.characters.first : '?'),
+                  : (member.name.isNotEmpty
+                        ? member.name.characters.first
+                        : '?'),
               style: AppTextStyles.bodyLarge.copyWith(
                 color: AppColors.primary,
                 fontWeight: FontWeight.w800,
@@ -370,7 +579,9 @@ class CommitteeMemberTile extends StatelessWidget {
             children: [
               Text(
                 member.name,
-                style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -383,7 +594,9 @@ class CommitteeMemberTile extends StatelessWidget {
               const SizedBox(height: 1),
               Text(
                 committeeBranchLine(),
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -413,7 +626,33 @@ class _CommitteeDivider extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md),
           child: Text(
             LocaleService.isEnglish ? 'Other members' : 'অন্যান্য সদস্য',
-            style: AppTextStyles.overline.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.overline.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+      ],
+    );
+  }
+}
+
+/// Separator before dynamically admin-added committee members.
+class _DynamicMemberDivider extends StatelessWidget {
+  const _DynamicMemberDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: AppColors.border, thickness: 1)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md),
+          child: Text(
+            LocaleService.isEnglish ? 'Additional members' : 'অতিরিক্ত সদস্য',
+            style: AppTextStyles.overline.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         Expanded(child: Divider(color: AppColors.border, thickness: 1)),

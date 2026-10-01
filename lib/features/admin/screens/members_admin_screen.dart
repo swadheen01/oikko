@@ -12,6 +12,7 @@ import '../../../core/utils/designation_rank.dart';
 import '../../../models/member.dart';
 import '../../directory/widgets/school_filter_field.dart';
 import '../../finance/screens/add_payment_screen.dart';
+import '../../finance/screens/finance_dashboard_screen.dart';
 import '../../../widgets/gradient_scaffold.dart';
 import '../../../widgets/premium_card.dart';
 import '../../../widgets/status_badge.dart';
@@ -666,6 +667,18 @@ class _MemberRow extends StatelessWidget {
             color: AppColors.surface,
             onSelected: (value) {
               switch (value) {
+                case 'finance':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => FinanceDashboardScreen(
+                        isAdmin: false,
+                        isViewerAdmin: true,
+                        memberId: member.id,
+                        memberName: member.name,
+                        memberCode: member.memberCode,
+                      ),
+                    ),
+                  );
                 case 'edit':
                   onEdit();
                 case 'copy':
@@ -677,6 +690,16 @@ class _MemberRow extends StatelessWidget {
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'finance',
+                child: Row(
+                  children: [
+                    Icon(Icons.account_balance_wallet_rounded, size: 18, color: AppColors.accentTeal),
+                    const SizedBox(width: AppDimensions.sm),
+                    Text(LocaleService.isEnglish ? 'Payment statement' : 'পেমেন্ট হিসাব'),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'edit',
                 child: Row(

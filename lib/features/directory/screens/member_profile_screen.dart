@@ -6,6 +6,7 @@ import '../../../core/constants/firestore_paths.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../admin/screens/edit_member_screen.dart';
+import '../../finance/screens/finance_dashboard_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -49,8 +50,18 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     final d = DateTime.tryParse(iso.trim());
     if (d == null) return iso.trim();
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
@@ -97,7 +108,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             actions: [
               if (_isAdmin)
                 IconButton(
-                  tooltip: LocaleService.isEnglish ? 'Edit info' : 'তথ্য সংশোধন',
+                  tooltip: LocaleService.isEnglish
+                      ? 'Edit info'
+                      : 'তথ্য সংশোধন',
                   icon: const Icon(Icons.edit_rounded, color: Colors.white),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
@@ -116,20 +129,32 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                       CircleAvatar(
                         radius: AppDimensions.avatarLg / 2,
                         backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        backgroundImage: member.photoUrl.isNotEmpty ? NetworkImage(member.photoUrl) : null,
+                        backgroundImage: member.photoUrl.isNotEmpty
+                            ? NetworkImage(member.photoUrl)
+                            : null,
                         child: member.photoUrl.isEmpty
                             ? Text(
-                                member.name.isNotEmpty ? member.name.characters.first : '?',
-                                style: AppTextStyles.h1.copyWith(color: Colors.white, fontSize: 36),
+                                member.name.isNotEmpty
+                                    ? member.name.characters.first
+                                    : '?',
+                                style: AppTextStyles.h1.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                ),
                               )
                             : null,
                       ),
                       const SizedBox(height: 12),
-                      Text(member.name, style: AppTextStyles.h2.copyWith(color: Colors.white)),
+                      Text(
+                        member.name,
+                        style: AppTextStyles.h2.copyWith(color: Colors.white),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         member.designation,
-                        style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
                       ),
                     ],
                   ),
@@ -147,106 +172,211 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                 // raw string. A number that can't be normalised (a few in
                 // the imported roster are the wrong length) disables these
                 // instead of opening a chat with the wrong person.
-                Builder(builder: (context) {
-                  final wa = PhoneUtils.whatsAppUrl(member.phone);
-                  final tel = PhoneUtils.telUrl(member.phone);
-                  final sms = PhoneUtils.smsUrl(member.phone);
+                Builder(
+                  builder: (context) {
+                    final wa = PhoneUtils.whatsAppUrl(member.phone);
+                    final tel = PhoneUtils.telUrl(member.phone);
+                    final sms = PhoneUtils.smsUrl(member.phone);
 
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: _ContactButton(
-                          icon: Icons.call_rounded,
-                          label: LocaleService.isEnglish ? 'Call' : 'কল',
-                          color: AppColors.success,
-                          onTap: tel == null ? null : () => _launch(tel),
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _ContactButton(
+                            icon: Icons.call_rounded,
+                            label: LocaleService.isEnglish ? 'Call' : 'কল',
+                            color: AppColors.success,
+                            onTap: tel == null ? null : () => _launch(tel),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppDimensions.sm),
-                      Expanded(
-                        child: _ContactButton(
-                          icon: Icons.sms_rounded,
-                          label: LocaleService.isEnglish ? 'SMS' : 'এসএমএস',
-                          color: AppColors.primary,
-                          onTap: sms == null ? null : () => _launch(sms),
+                        const SizedBox(width: AppDimensions.sm),
+                        Expanded(
+                          child: _ContactButton(
+                            icon: Icons.sms_rounded,
+                            label: LocaleService.isEnglish ? 'SMS' : 'এসএমএস',
+                            color: AppColors.primary,
+                            onTap: sms == null ? null : () => _launch(sms),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppDimensions.sm),
-                      Expanded(
-                        child: _ContactButton(
-                          icon: Icons.chat_rounded,
-                          label: LocaleService.isEnglish ? 'WhatsApp' : 'হোয়াটসঅ্যাপ',
-                          color: const Color(0xFF25D366),
-                          onTap: wa == null ? null : () => _launch(wa),
+                        const SizedBox(width: AppDimensions.sm),
+                        Expanded(
+                          child: _ContactButton(
+                            icon: Icons.chat_rounded,
+                            label: LocaleService.isEnglish
+                                ? 'WhatsApp'
+                                : 'হোয়াটসঅ্যাপ',
+                            color: const Color(0xFF25D366),
+                            onTap: wa == null ? null : () => _launch(wa),
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }),
+                      ],
+                    );
+                  },
+                ),
                 const SizedBox(height: AppDimensions.lg),
+
+                if (_isAdmin) ...[
+                  Material(
+                    color: AppColors.accentTeal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusMd,
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => FinanceDashboardScreen(
+                            isAdmin: false,
+                            isViewerAdmin: true,
+                            memberId: member.id,
+                            memberName: member.name,
+                            memberCode: member.memberCode,
+                          ),
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.md,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusMd,
+                          ),
+                          border: Border.all(
+                            color: AppColors.accentTeal.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.accentTeal.withValues(
+                                  alpha: 0.15,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.account_balance_wallet_rounded,
+                                color: AppColors.accentTeal,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: AppDimensions.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    LocaleService.isEnglish
+                                        ? 'Payment statement'
+                                        : 'পেমেন্ট হিসাব ও বিবরণী',
+                                    style: AppTextStyles.bodyLarge.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    LocaleService.isEnglish
+                                        ? 'View full history, dates & download PDF'
+                                        : 'তারিখভিত্তিক হিসাব ও পিডিএফ ডাউনলোড',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: AppColors.accentTeal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.lg),
+                ],
 
                 // When a blood group is on file, surface it prominently with
                 // a one-tap call — this is the payoff of the Blood donors
                 // finder: you land on the donor and can reach them at once.
                 if (member.bloodGroup.trim().isNotEmpty) ...[
-                  Builder(builder: (context) {
-                    final tel = PhoneUtils.telUrl(member.phone);
-                    return _BloodBanner(
-                      group: member.bloodGroup.trim(),
-                      onCall: tel == null ? null : () => _launch(tel),
-                    );
-                  }),
+                  Builder(
+                    builder: (context) {
+                      final tel = PhoneUtils.telUrl(member.phone);
+                      return _BloodBanner(
+                        group: member.bloodGroup.trim(),
+                        onCall: tel == null ? null : () => _launch(tel),
+                      );
+                    },
+                  ),
                   const SizedBox(height: AppDimensions.lg),
                 ],
 
-                _InfoCard(items: [
-                  _InfoRow(
-                    icon: Icons.school_rounded,
-                    label: LocaleService.isEnglish ? 'School' : 'বিদ্যালয়',
-                    value: member.schoolName,
-                  ),
-                  _InfoRow(
-                    icon: Icons.badge_rounded,
-                    label: LocaleService.isEnglish ? 'Designation' : 'পদবী',
-                    value: member.designation,
-                  ),
-                  _InfoRow(
-                    icon: Icons.workspace_premium_rounded,
-                    label: LocaleService.isEnglish ? 'Qualification' : 'যোগ্যতা',
-                    value: member.qualification,
-                  ),
-                  _InfoRow(
-                    icon: Icons.bloodtype_rounded,
-                    label: LocaleService.isEnglish ? 'Blood group' : 'রক্তের গ্রুপ',
-                    value: member.bloodGroup,
-                    accent: AppColors.danger,
-                  ),
-                  _InfoRow(
-                    icon: Icons.phone_rounded,
-                    label: LocaleService.isEnglish ? 'Phone' : 'ফোন',
-                    value: member.phone,
-                  ),
-                  _InfoRow(
-                    icon: Icons.email_rounded,
-                    label: LocaleService.isEnglish ? 'Email' : 'ইমেইল',
-                    value: member.email,
-                  ),
-                  _InfoRow(
-                    icon: Icons.tag_rounded,
-                    label: LocaleService.isEnglish ? 'Index number' : 'ইনডেক্স নম্বর',
-                    value: member.indexNumber,
-                  ),
-                  _InfoRow(
-                    icon: Icons.event_available_rounded,
-                    label: LocaleService.isEnglish ? 'Joining date' : 'যোগদানের তারিখ',
-                    value: _fmtDate(member.joiningDate),
-                  ),
-                  _InfoRow(
-                    icon: Icons.event_note_rounded,
-                    label: LocaleService.isEnglish ? 'MPO date' : 'এমপিও তারিখ',
-                    value: _fmtDate(member.mpoDate),
-                  ),
-                ]),
+                _InfoCard(
+                  items: [
+                    _InfoRow(
+                      icon: Icons.school_rounded,
+                      label: LocaleService.isEnglish ? 'School' : 'বিদ্যালয়',
+                      value: member.schoolName,
+                    ),
+                    _InfoRow(
+                      icon: Icons.badge_rounded,
+                      label: LocaleService.isEnglish ? 'Designation' : 'পদবী',
+                      value: member.designation,
+                    ),
+                    _InfoRow(
+                      icon: Icons.workspace_premium_rounded,
+                      label: LocaleService.isEnglish
+                          ? 'Qualification'
+                          : 'যোগ্যতা',
+                      value: member.qualification,
+                    ),
+                    _InfoRow(
+                      icon: Icons.bloodtype_rounded,
+                      label: LocaleService.isEnglish
+                          ? 'Blood group'
+                          : 'রক্তের গ্রুপ',
+                      value: member.bloodGroup,
+                      accent: AppColors.danger,
+                    ),
+                    _InfoRow(
+                      icon: Icons.phone_rounded,
+                      label: LocaleService.isEnglish ? 'Phone' : 'ফোন',
+                      value: member.phone,
+                    ),
+                    _InfoRow(
+                      icon: Icons.email_rounded,
+                      label: LocaleService.isEnglish ? 'Email' : 'ইমেইল',
+                      value: member.email,
+                    ),
+                    _InfoRow(
+                      icon: Icons.tag_rounded,
+                      label: LocaleService.isEnglish
+                          ? 'Index number'
+                          : 'ইনডেক্স নম্বর',
+                      value: member.indexNumber,
+                    ),
+                    _InfoRow(
+                      icon: Icons.event_available_rounded,
+                      label: LocaleService.isEnglish
+                          ? 'Joining date'
+                          : 'যোগদানের তারিখ',
+                      value: _fmtDate(member.joiningDate),
+                    ),
+                    _InfoRow(
+                      icon: Icons.event_note_rounded,
+                      label: LocaleService.isEnglish
+                          ? 'MPO date'
+                          : 'এমপিও তারিখ',
+                      value: _fmtDate(member.mpoDate),
+                    ),
+                  ],
+                ),
               ]),
             ),
           ),
@@ -265,7 +395,12 @@ class _ContactButton extends StatelessWidget {
   /// greys out instead of silently doing nothing when tapped.
   final VoidCallback? onTap;
 
-  const _ContactButton({required this.icon, required this.label, required this.color, this.onTap});
+  const _ContactButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +471,10 @@ class _BloodBanner extends StatelessWidget {
             ),
             child: Text(
               group,
-              style: AppTextStyles.h3.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+              style: AppTextStyles.h3.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(width: AppDimensions.md),
@@ -346,18 +484,26 @@ class _BloodBanner extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.bloodtype_rounded, size: 15, color: AppColors.danger),
+                    Icon(
+                      Icons.bloodtype_rounded,
+                      size: 15,
+                      color: AppColors.danger,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       isEn ? 'Blood group' : 'রক্তের গ্রুপ',
-                      style: AppTextStyles.overline.copyWith(color: AppColors.danger),
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.danger,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 2),
                 Text(
                   isEn ? 'Can donate $group blood' : '$group রক্ত দিতে পারেন',
-                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -373,20 +519,27 @@ class _BloodBanner extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
               onTap: onCall,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.call_rounded,
                       size: 16,
-                      color: onCall == null ? AppColors.textSecondary : Colors.white,
+                      color: onCall == null
+                          ? AppColors.textSecondary
+                          : Colors.white,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       isEn ? 'Call' : 'কল',
                       style: AppTextStyles.caption.copyWith(
-                        color: onCall == null ? AppColors.textSecondary : Colors.white,
+                        color: onCall == null
+                            ? AppColors.textSecondary
+                            : Colors.white,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -428,13 +581,21 @@ class _InfoRow extends StatelessWidget {
   /// blood-group row in red so it reads as blood.
   final Color? accent;
 
-  const _InfoRow({required this.icon, required this.label, required this.value, this.accent});
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.accent,
+  });
 
   @override
   Widget build(BuildContext context) {
     final tint = accent ?? AppColors.primary;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.md, vertical: AppDimensions.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.md,
+        vertical: AppDimensions.sm,
+      ),
       child: Row(
         children: [
           Container(
@@ -451,7 +612,12 @@ class _InfoRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: AppTextStyles.overline),
-                Text(value, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  value,
+                  style: AppTextStyles.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),

@@ -9,6 +9,7 @@ import '../../../core/services/finance_pdf_service.dart';
 import '../../../core/services/finance_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../models/member.dart';
 import '../../../models/transaction.dart';
 import '../../account_linking/widgets/sync_payment_card.dart';
 import '../../../widgets/gradient_scaffold.dart';
@@ -48,6 +49,9 @@ class FinanceDashboardScreen extends StatefulWidget {
   final String personalMemberName;
   final String personalMemberCode;
 
+  /// True when an admin is inspecting another member's statement.
+  final bool isViewerAdmin;
+
   const FinanceDashboardScreen({
     super.key,
     this.isAdmin = false,
@@ -58,6 +62,7 @@ class FinanceDashboardScreen extends StatefulWidget {
     this.personalMemberId,
     this.personalMemberName = '',
     this.personalMemberCode = '',
+    this.isViewerAdmin = false,
   }) : assert(isAdmin || memberId != null, 'memberId is required when isAdmin is false');
 
   @override
@@ -243,8 +248,8 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!isAdmin && !isLinked) return const _NotLinkedFinanceView();
-    if (!isAdmin) return _buildBody(context, const {});
+    if (!isAdmin && !isLinked && !widget.isViewerAdmin) return const _NotLinkedFinanceView();
+    if (!isAdmin) return _buildBody(context, const {}, const {});
 
     // Transactions store only a memberId, so the admin list would otherwise
     // show an amount and a reason with no indication of who paid it.
@@ -254,16 +259,24 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _membersStream,
       builder: (context, snapshot) {
-        final names = <String, String>{
+        final membersMap = <String, Member>{
           for (final doc in snapshot.data?.docs ?? const [])
-            doc.id: (doc.data()['name'] as String?) ?? '',
+            doc.id: Member.fromDoc(doc),
         };
-        return _buildBody(context, names);
+        final names = <String, String>{
+          for (final entry in membersMap.entries)
+            entry.key: entry.value.name,
+        };
+        return _buildBody(context, names, membersMap);
       },
     );
   }
 
-  Widget _buildBody(BuildContext context, Map<String, String> memberNames) {
+  Widget _buildBody(
+    BuildContext context,
+    Map<String, String> memberNames, [
+    Map<String, Member> membersMap = const {},
+  ]) {
     final financeService = _financeService;
 
     return GradientScaffold(
@@ -325,7 +338,38 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                 padding: const EdgeInsets.all(AppDimensions.lg),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    Text(isAdmin ? AppStrings.finance : AppStrings.myStatement, style: AppTextStyles.h1),
+                    if (Navigator.of(context).canPop()) ...[
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                        ),
+                      ),
+                      const SizedBox(height: AppDimensions.sm),
+                    ],
+                    Text(
+                      widget.isViewerAdmin
+                          ? (LocaleService.isEnglish
+                              ? '${widget.memberName} — Statement'
+                              : '${widget.memberName} — হিসাব')
+                          : (isAdmin ? AppStrings.finance : AppStrings.myStatement),
+                      style: AppTextStyles.h1,
+                    ),
+                    if (widget.isViewerAdmin && widget.memberCode.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        LocaleService.isEnglish
+                            ? 'Member ID: ${widget.memberCode}'
+                            : 'সদস্য আইডি: ${widget.memberCode}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                     // An admin is a teacher too — this switches between the
                     // association-wide total and their own personal dues,
                     // the same statement an ordinary member sees.
@@ -343,14 +387,38 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                       expense: expense,
                       label: isAdmin ? AppStrings.totalNetAmount : null,
                       personal: !isAdmin,
+                      personalTitle: widget.isViewerAdmin
+                          ? (LocaleService.isEnglish ? 'TOTAL PAID BY MEMBER' : 'সদস্যের মোট জমা')
+                          : null,
+                      personalSubtitle: widget.isViewerAdmin
+                          ? (LocaleService.isEnglish
+                              ? 'Total payments and dues recorded for ${widget.memberName}.'
+                              : '${widget.memberName}-এর নামে সমিতিতে জমা হওয়া মোট টাকা।')
+                          : null,
                     ),
                     const SizedBox(height: AppDimensions.lg),
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            isAdmin ? AppStrings.allTransactions : AppStrings.myStatement,
-                            style: AppTextStyles.h3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.isViewerAdmin
+                                    ? (LocaleService.isEnglish ? 'Payment records' : 'পেমেন্ট বিবরণী')
+                                    : (isAdmin ? AppStrings.allTransactions : AppStrings.myStatement),
+                                style: AppTextStyles.h3,
+                              ),
+                              if (transactions.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  LocaleService.isEnglish
+                                      ? '${transactions.length} record${transactions.length == 1 ? '' : 's'}'
+                                      : '${transactions.length} টি পেমেন্ট',
+                                  style: AppTextStyles.caption,
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                         // Share a PDF of the summary (admin) or the member's
@@ -398,26 +466,45 @@ class _FinanceDashboardScreenState extends State<FinanceDashboardScreen> {
                   ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, index) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppDimensions.sm),
-                        child: TransactionListItem(
-                          transaction: transactions[index],
-                          // Only the admin view mixes members together, so
-                          // only it needs the payer's name; a member's own
-                          // statement is all their own payments already.
-                          memberName: isAdmin
-                              ? memberNames[transactions[index].memberId]
-                              : null,
-                          onDelete: isAdmin
-                              ? () => _confirmDeleteOne(
-                                    context,
-                                    financeService,
-                                    transactions[index],
-                                    memberNames[transactions[index].memberId],
-                                  )
-                              : null,
-                        ),
-                      ),
+                      (context, index) {
+                        final tx = transactions[index];
+                        final mId = tx.memberId;
+                        final payerMember = mId != null ? membersMap[mId] : null;
+                        final payerName = isAdmin
+                            ? (payerMember?.name ?? memberNames[mId])
+                            : null;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppDimensions.sm),
+                          child: TransactionListItem(
+                            transaction: tx,
+                            memberName: payerName,
+                            onTap: (isAdmin && mId != null && mId.isNotEmpty)
+                                ? () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => FinanceDashboardScreen(
+                                          isAdmin: false,
+                                          isViewerAdmin: true,
+                                          memberId: mId,
+                                          memberName: payerMember?.name ?? memberNames[mId] ?? '',
+                                          memberCode: payerMember?.memberCode ?? '',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null,
+                            onDelete: (isAdmin || widget.isViewerAdmin)
+                                ? () => _confirmDeleteOne(
+                                      context,
+                                      financeService,
+                                      tx,
+                                      isAdmin ? payerName : widget.memberName,
+                                    )
+                                : null,
+                          ),
+                        );
+                      },
                       childCount: transactions.length,
                     ),
                   ),

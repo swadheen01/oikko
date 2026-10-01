@@ -53,8 +53,8 @@ class _AddPaymentScreenState extends State<AddPaymentScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime(1990),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _date = picked);
   }

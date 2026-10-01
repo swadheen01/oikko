@@ -23,6 +23,12 @@ class BalanceHeroCard extends StatelessWidget {
   /// theirs and only make the number ambiguous ("is that mine or ours?").
   final bool personal;
 
+  /// Optional custom title for the personal view (e.g. when an admin views a member's statement).
+  final String? personalTitle;
+
+  /// Optional custom subtitle for the personal view.
+  final String? personalSubtitle;
+
   const BalanceHeroCard({
     super.key,
     required this.balance,
@@ -30,6 +36,8 @@ class BalanceHeroCard extends StatelessWidget {
     required this.expense,
     this.label,
     this.personal = false,
+    this.personalTitle,
+    this.personalSubtitle,
   });
 
   /// Member view: one centred figure, with wording that says plainly whose
@@ -49,7 +57,7 @@ class BalanceHeroCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              isEn ? 'TOTAL YOU HAVE PAID' : 'আপনি মোট যত টাকা দিয়েছেন',
+              personalTitle ?? (isEn ? 'TOTAL YOU HAVE PAID' : 'আপনি মোট যত টাকা দিয়েছেন'),
               style: AppTextStyles.overline.copyWith(
                 color: Colors.white.withValues(alpha: 0.85),
               ),
@@ -64,9 +72,10 @@ class BalanceHeroCard extends StatelessWidget {
         ),
         const SizedBox(height: AppDimensions.md),
         Text(
-          isEn
-              ? 'This is the total amount recorded against your name by the association. If something looks wrong, please contact the admin.'
-              : 'সমিতির হিসাবে আপনার নামে জমা হওয়া মোট টাকার পরিমাণ এটি। কোনো গরমিল মনে হলে অ্যাডমিনের সাথে যোগাযোগ করুন।',
+          personalSubtitle ??
+              (isEn
+                  ? 'This is the total amount recorded against your name by the association. If something looks wrong, please contact the admin.'
+                  : 'সমিতির হিসাবে আপনার নামে জমা হওয়া মোট টাকার পরিমাণ এটি। কোনো গরমিল মনে হলে অ্যাডমিনের সাথে যোগাযোগ করুন।'),
           textAlign: TextAlign.center,
           style: AppTextStyles.bodyMedium.copyWith(
             color: Colors.white.withValues(alpha: 0.82),

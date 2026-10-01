@@ -67,7 +67,9 @@ class AboutScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isEn ? 'Baniyachong Upazila Branch, Habiganj' : 'বানিয়াচং উপজেলা শাখা, হবিগঞ্জ',
+                      isEn
+                          ? 'Baniyachong Upazila Branch, Habiganj'
+                          : 'বানিয়াচং উপজেলা শাখা, হবিগঞ্জ',
                       style: AppTextStyles.bodyLarge.copyWith(
                         color: Colors.white.withValues(alpha: 0.92),
                         fontWeight: FontWeight.w600,
@@ -89,10 +91,10 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       isEn
                           ? 'Oikko (ঐক্য) brings together the teachers of Baniyachong Upazila under '
-                              'one platform — a shared member directory, dues and welfare-fund tracking, '
-                              'notices, and community voting, all in one place.'
+                                'one platform — a shared member directory, dues and welfare-fund tracking, '
+                                'notices, and community voting, all in one place.'
                           : 'ঐক্য অ্যাপের মাধ্যমে বানিয়াচং উপজেলার সকল শিক্ষক একটি প্ল্যাটফর্মে যুক্ত হয়েছেন — '
-                              'সদস্য তালিকা, চাঁদা ও কল্যাণ তহবিলের হিসাব, নোটিশ এবং সিদ্ধান্ত গ্রহণের ভোটিং, সবকিছু একসাথে।',
+                                'সদস্য তালিকা, চাঁদা ও কল্যাণ তহবিলের হিসাব, নোটিশ এবং সিদ্ধান্ত গ্রহণের ভোটিং, সবকিছু একসাথে।',
                       style: AppTextStyles.bodyLarge,
                     ),
                   ],
@@ -116,9 +118,12 @@ class AboutScreen extends StatelessWidget {
                         final members = mergeCommittee(snapshot.data);
                         return Column(
                           children: [
-                            CommitteeMemberTile(member: members[0]),
-                            const SizedBox(height: AppDimensions.md),
-                            CommitteeMemberTile(member: members[1]),
+                            if (members.isNotEmpty)
+                              CommitteeMemberTile(member: members[0]),
+                            if (members.length > 1) ...[
+                              const SizedBox(height: AppDimensions.md),
+                              CommitteeMemberTile(member: members[1]),
+                            ],
                           ],
                         );
                       },
@@ -128,24 +133,29 @@ class AboutScreen extends StatelessWidget {
                     // rest) with photos.
                     _FullListButton(
                       onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CommitteeScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const CommitteeScreen(),
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppDimensions.lg),
-                    Text(
-                      isEn ? 'Contact' : 'যোগাযোগ',
-                      style: AppTextStyles.h3,
-                    ),
+                    Text(isEn ? 'Contact' : 'যোগাযোগ', style: AppTextStyles.h3),
                     const SizedBox(height: AppDimensions.sm),
                     _ContactRow(
                       icon: Icons.person_rounded,
                       label: isEn ? 'General Secretary' : 'সাধারণ সম্পাদক',
-                      value: isEn ? 'Mohammad Mofazzal Hossain' : 'মোহাম্মদ মোফাজ্জল হোসেন',
-                      subtitle: isEn ? 'Baniyachong Adarsha High School' : 'বানিয়াচং আদর্শ উচ্চ বিদ্যালয়',
+                      value: isEn
+                          ? 'Mohammad Mofazzal Hossain'
+                          : 'মোহাম্মদ মোফাজ্জল হোসেন',
+                      subtitle: isEn
+                          ? 'Baniyachong Adarsha High School'
+                          : 'বানিয়াচং আদর্শ উচ্চ বিদ্যালয়',
                     ),
                     const SizedBox(height: AppDimensions.sm),
                     InkWell(
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusSm,
+                      ),
                       onTap: () => _launch('tel:01722917918'),
                       child: const _ContactRow(
                         icon: Icons.call_rounded,
@@ -168,7 +178,6 @@ class AboutScreen extends StatelessWidget {
   }
 }
 
-
 /// "See the full committee list" button on the About page.
 class _FullListButton extends StatelessWidget {
   final VoidCallback onTap;
@@ -185,11 +194,14 @@ class _FullListButton extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.md, vertical: 13,
+            horizontal: AppDimensions.md,
+            vertical: 13,
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.35),
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -204,7 +216,11 @@ class _FullListButton extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+              Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: AppColors.primary,
+              ),
             ],
           ),
         ),
@@ -238,7 +254,11 @@ class _ContactRow extends StatelessWidget {
             color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
           ),
-          child: Icon(icon, color: AppColors.primary, size: AppDimensions.iconSm),
+          child: Icon(
+            icon,
+            color: AppColors.primary,
+            size: AppDimensions.iconSm,
+          ),
         ),
         const SizedBox(width: AppDimensions.md),
         Expanded(
@@ -246,11 +266,18 @@ class _ContactRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label, style: AppTextStyles.overline),
-              Text(value, style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                value,
+                style: AppTextStyles.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               if (subtitle != null && subtitle!.isNotEmpty)
                 Text(
                   subtitle!,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
             ],
           ),
