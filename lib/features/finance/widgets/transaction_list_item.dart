@@ -38,11 +38,19 @@ class TransactionListItem extends StatelessWidget {
 
   String get _typeLabel {
     final isEn = LocaleService.isEnglish;
+    if (transaction.donorName != null && transaction.donorName!.isNotEmpty) {
+      return isEn ? 'Donation' : 'অনুদান';
+    }
+    if (transaction.category != null && transaction.category!.isNotEmpty) {
+      return transaction.category!;
+    }
     switch (transaction.type) {
       case TransactionType.income:
         return isEn ? 'Income' : 'আয়';
       case TransactionType.expense:
         return isEn ? 'Expense' : 'ব্যয়';
+      case TransactionType.withdrawal:
+        return isEn ? 'Withdrawal' : 'টাকা উত্তোলন';
       case TransactionType.duePayment:
         return isEn ? 'Dues' : 'চাঁদা জমা';
     }
@@ -112,6 +120,14 @@ class TransactionListItem extends StatelessWidget {
               const SizedBox(height: AppDimensions.md),
               const Divider(),
               const SizedBox(height: AppDimensions.sm),
+              if (transaction.donorName != null && transaction.donorName!.isNotEmpty) ...[
+                _detailRow(
+                  icon: Icons.volunteer_activism_rounded,
+                  label: isEn ? 'Donor' : 'দাতার নাম',
+                  value: transaction.donorName!,
+                ),
+                const SizedBox(height: AppDimensions.sm),
+              ],
               if (memberName != null && memberName!.isNotEmpty) ...[
                 _detailRow(
                   icon: Icons.person_rounded,
@@ -120,9 +136,25 @@ class TransactionListItem extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimensions.sm),
               ],
+              if (transaction.schoolName != null && transaction.schoolName!.isNotEmpty) ...[
+                _detailRow(
+                  icon: Icons.school_rounded,
+                  label: isEn ? 'School' : 'বিদ্যালয়',
+                  value: transaction.schoolName!,
+                ),
+                const SizedBox(height: AppDimensions.sm),
+              ],
+              if (transaction.category != null && transaction.category!.isNotEmpty) ...[
+                _detailRow(
+                  icon: Icons.category_rounded,
+                  label: isEn ? 'Category' : 'খাত',
+                  value: transaction.category!,
+                ),
+                const SizedBox(height: AppDimensions.sm),
+              ],
               _detailRow(
                 icon: Icons.calendar_today_rounded,
-                label: isEn ? 'Payment date' : 'পেমেন্টের তারিখ',
+                label: isEn ? 'Payment date' : 'তারিখ',
                 value: Formatters.date(transaction.date),
               ),
               if (transaction.description.isNotEmpty) ...[
@@ -190,9 +222,44 @@ class TransactionListItem extends StatelessWidget {
     );
   }
 
+  String get _title {
+    if (transaction.donorName != null && transaction.donorName!.isNotEmpty) {
+      return 'অনুদান: ${transaction.donorName}';
+    }
+    if (memberName != null && memberName!.isNotEmpty) {
+      return memberName!;
+    }
+    if (transaction.schoolName != null && transaction.schoolName!.isNotEmpty) {
+      return transaction.schoolName!;
+    }
+    if (transaction.description.isNotEmpty) {
+      return transaction.description;
+    }
+    return _typeLabel;
+  }
+
+  String? get _subtitle {
+    if (transaction.donorName != null && transaction.donorName!.isNotEmpty) {
+      return transaction.description.isNotEmpty ? transaction.description : null;
+    }
+    if (memberName != null && memberName!.isNotEmpty) {
+      if (transaction.schoolName != null && transaction.schoolName!.isNotEmpty) {
+        return transaction.description.isNotEmpty
+            ? '${transaction.schoolName} • ${transaction.description}'
+            : transaction.schoolName;
+      }
+      return transaction.description.isNotEmpty ? transaction.description : null;
+    }
+    if (transaction.schoolName != null && transaction.schoolName!.isNotEmpty) {
+      return transaction.description.isNotEmpty ? transaction.description : null;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = _isCredit ? AppColors.success : AppColors.danger;
+    final sub = _subtitle;
 
     return Material(
       color: Colors.transparent,
@@ -212,7 +279,11 @@ class TransactionListItem extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  _isCredit ? Icons.add_rounded : Icons.remove_rounded,
+                  transaction.donorName != null && transaction.donorName!.isNotEmpty
+                      ? Icons.volunteer_activism_rounded
+                      : (transaction.schoolName != null && transaction.memberId == null
+                          ? Icons.school_rounded
+                          : (_isCredit ? Icons.add_rounded : Icons.remove_rounded)),
                   color: color,
                 ),
               ),
@@ -221,26 +292,18 @@ class TransactionListItem extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // In the admin view the payer's name is the primary thing
-                    // to read; in the member's view, the description/type is primary.
                     Text(
-                      (memberName != null && memberName!.isNotEmpty)
-                          ? memberName!
-                          : (transaction.description.isNotEmpty
-                                ? transaction.description
-                                : _typeLabel),
+                      _title,
                       style: AppTextStyles.bodyLarge.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (memberName != null &&
-                        memberName!.isNotEmpty &&
-                        transaction.description.isNotEmpty) ...[
+                    if (sub != null && sub.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        transaction.description,
+                        sub,
                         style: AppTextStyles.caption,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -261,28 +324,25 @@ class TransactionListItem extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        if (memberName == null &&
-                            transaction.description.isNotEmpty) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _typeLabel,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: 10,
-                                color: color,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _typeLabel,
+                            style: AppTextStyles.caption.copyWith(
+                              fontSize: 10,
+                              color: color,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ],

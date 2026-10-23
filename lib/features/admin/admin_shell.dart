@@ -164,8 +164,8 @@ class _AdminShellState extends State<AdminShell> {
             builder: (_) => const AddPaymentScreen(),
           ),
           DrawerActionItem(
-            icon: Icons.receipt_long_rounded,
-            label: AppStrings.addExpense,
+            icon: Icons.account_balance_wallet_rounded,
+            label: AppStrings.incomeAndExpense,
             color: AppColors.danger,
             builder: (_) => const AddExpenseScreen(),
           ),

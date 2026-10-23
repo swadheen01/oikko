@@ -54,6 +54,8 @@ class FinancePdfService {
         return isEn ? 'Income' : 'আয়';
       case TransactionType.expense:
         return isEn ? 'Expense' : 'ব্যয়';
+      case TransactionType.withdrawal:
+        return isEn ? 'Withdrawal' : 'টাকা উত্তোলন';
       case TransactionType.duePayment:
         return isEn ? 'Dues' : 'চাঁদা জমা';
     }
@@ -194,7 +196,9 @@ class FinancePdfService {
     String memberCode = '',
   }) async {
     final font = await _loadFont();
-    final paid = FinanceService.totalIncome(transactions);
+    final totalDeposit = FinanceService.totalIncome(transactions);
+    final totalWithdrawal = FinanceService.totalExpense(transactions);
+    final netBalance = FinanceService.balance(transactions);
     final dateFmt = DateFormat('dd MMM yyyy');
 
     final nameLine =
@@ -220,13 +224,26 @@ class FinancePdfService {
             pw.Text('Member ID: $memberCode',
                 style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
           pw.SizedBox(height: 14),
-          pw.Row(
-            children: [
-              _statBox('Total paid', _tk(paid), PdfColors.teal700),
-              pw.SizedBox(width: 8),
-              _statBox('Payments', '${transactions.length}', PdfColors.blue800),
-            ],
-          ),
+          if (totalWithdrawal > 0)
+            pw.Row(
+              children: [
+                _statBox('Total deposit', _tk(totalDeposit), PdfColors.teal700),
+                pw.SizedBox(width: 8),
+                _statBox('Withdrawal', _tk(totalWithdrawal), PdfColors.red700),
+                pw.SizedBox(width: 8),
+                _statBox('Net balance', _tk(netBalance), PdfColors.blue800),
+                pw.SizedBox(width: 8),
+                _statBox('Records', '${transactions.length}', PdfColors.grey800),
+              ],
+            )
+          else
+            pw.Row(
+              children: [
+                _statBox('Total paid', _tk(totalDeposit), PdfColors.teal700),
+                pw.SizedBox(width: 8),
+                _statBox('Payments', '${transactions.length}', PdfColors.blue800),
+              ],
+            ),
           pw.SizedBox(height: 14),
           _table(
             headers: ['Date', 'Details', 'Type', 'Amount'],
@@ -239,8 +256,20 @@ class FinancePdfService {
                   typeCells[i],
                   pw.Align(
                     alignment: pw.Alignment.centerRight,
-                    child: pw.Text(_tk(transactions[i].amount),
-                        style: const pw.TextStyle(fontSize: 9)),
+                    child: pw.Text(
+                      (transactions[i].type == TransactionType.withdrawal ||
+                              transactions[i].type == TransactionType.expense)
+                          ? '- ${_tk(transactions[i].amount)}'
+                          : '+ ${_tk(transactions[i].amount)}',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: (transactions[i].type == TransactionType.withdrawal ||
+                                transactions[i].type == TransactionType.expense)
+                            ? PdfColors.red700
+                            : PdfColors.teal800,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
             ],
@@ -258,10 +287,218 @@ class FinancePdfService {
   }
 
   static String _detailsFor(AppTransaction t, Map<String, String> names) {
+    if (t.donorName != null && t.donorName!.isNotEmpty) {
+      final desc = t.description.isNotEmpty ? ' (${t.description})' : '';
+      return 'অনুদান: ${t.donorName}$desc';
+    }
     final name = t.memberId == null ? '' : (names[t.memberId] ?? '');
-    if (name.isNotEmpty) return name;
+    if (name.isNotEmpty) {
+      if (t.description.isNotEmpty) return '$name (${t.description})';
+      return name;
+    }
+    if (t.schoolName != null && t.schoolName!.isNotEmpty) {
+      if (t.description.isNotEmpty) return '${t.schoolName} (${t.description})';
+      return t.schoolName!;
+    }
+    if (t.category != null && t.category!.isNotEmpty) {
+      if (t.description.isNotEmpty) return '${t.category}: ${t.description}';
+      return t.category!;
+    }
     if (t.description.isNotEmpty) return t.description;
     return t.memberId == null ? 'General' : '-';
+  }
+
+  /// Generates a PDF statement for a specific school.
+  static Future<void> shareSchoolStatement({
+    required String schoolName,
+    required List<AppTransaction> transactions,
+    required Map<String, String> memberNames,
+  }) async {
+    final font = await _loadFont();
+    final totalDeposit = transactions
+        .where((t) => t.type == TransactionType.duePayment || t.type == TransactionType.income)
+        .fold(0.0, (acc, t) => acc + t.amount);
+    final totalWithdrawal = transactions
+        .where((t) => t.type == TransactionType.withdrawal || t.type == TransactionType.expense)
+        .fold(0.0, (acc, t) => acc + t.amount);
+    final netBalance = totalDeposit - totalWithdrawal;
+    final dateFmt = DateFormat('dd MMM yyyy');
+
+    final schoolLine =
+        await _line(schoolName, fontSize: 15, bold: true, maxWidth: 420);
+    final detailCells = <pw.Widget>[
+      for (final t in transactions) await _line(_detailsFor(t, memberNames)),
+    ];
+    final typeCells = <pw.Widget>[
+      for (final t in transactions) await _line(_typeLabel(t.type)),
+    ];
+    final footer = await _footer();
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        theme: pw.ThemeData.withFont(base: font, bold: font),
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          _header('School Financial Statement / বিদ্যালয়ভিত্তিক হিসাব বিবরণী'),
+          pw.SizedBox(height: 12),
+          schoolLine,
+          pw.SizedBox(height: 14),
+          pw.Row(
+            children: [
+              _statBox('Total deposit / মোট জমা', _tk(totalDeposit), PdfColors.teal700),
+              pw.SizedBox(width: 8),
+              _statBox('Withdrawal / উত্তোলন', _tk(totalWithdrawal), PdfColors.red700),
+              pw.SizedBox(width: 8),
+              _statBox('Net balance / নিট স্থিতি', _tk(netBalance), PdfColors.blue800),
+              pw.SizedBox(width: 8),
+              _statBox('Records / মোট লেনদেন', '${transactions.length}', PdfColors.grey800),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+          _table(
+            headers: ['Date / তারিখ', 'Details / বিবরণ ও খাত', 'Type / ধরন', 'Amount / পরিমাণ'],
+            rows: [
+              for (var i = 0; i < transactions.length; i++)
+                [
+                  pw.Text(dateFmt.format(transactions[i].date),
+                      style: const pw.TextStyle(fontSize: 9)),
+                  detailCells[i],
+                  typeCells[i],
+                  pw.Align(
+                    alignment: pw.Alignment.centerRight,
+                    child: pw.Text(
+                      (transactions[i].type == TransactionType.withdrawal ||
+                              transactions[i].type == TransactionType.expense)
+                          ? '- ${_tk(transactions[i].amount)}'
+                          : '+ ${_tk(transactions[i].amount)}',
+                      style: pw.TextStyle(
+                        fontSize: 9,
+                        color: (transactions[i].type == TransactionType.withdrawal ||
+                                transactions[i].type == TransactionType.expense)
+                            ? PdfColors.red700
+                            : PdfColors.teal800,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+            ],
+          ),
+          pw.SizedBox(height: 20),
+          footer,
+        ],
+      ),
+    );
+
+    final safeName = schoolName.replaceAll(RegExp(r'[^\w\s\u0980-\u09FF]'), '').trim();
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: 'oikko-school-statement-${safeName.isEmpty ? 'school' : safeName}.pdf',
+    );
+  }
+
+  /// Generates a PDF summary of all schools with deposits, withdrawals, and balance.
+  static Future<void> shareAllSchoolsSummary({
+    required List<SchoolFinanceSummary> summaries,
+  }) async {
+    final font = await _loadFont();
+    final totalDeposit = summaries.fold(0.0, (acc, s) => acc + s.totalDeposit);
+    final totalWithdrawal = summaries.fold(0.0, (acc, s) => acc + s.totalWithdrawal);
+    final netBalance = totalDeposit - totalWithdrawal;
+
+    final schoolNameCells = <pw.Widget>[
+      for (final s in summaries) await _line(s.schoolName, fontSize: 8.5, maxWidth: 200),
+    ];
+    final footer = await _footer();
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        theme: pw.ThemeData.withFont(base: font, bold: font),
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+          _header('All Schools Financial Summary / সকল বিদ্যালয়ের হিসাব সারসংক্ষেপ'),
+          pw.SizedBox(height: 14),
+          pw.Row(
+            children: [
+              _statBox('Total collected / মোট জমা', _tk(totalDeposit), PdfColors.teal700),
+              pw.SizedBox(width: 8),
+              _statBox('Total withdrawal / মোট উত্তোলন', _tk(totalWithdrawal), PdfColors.red700),
+              pw.SizedBox(width: 8),
+              _statBox('Net balance / মোট স্থিতি', _tk(netBalance), PdfColors.blue800),
+              pw.SizedBox(width: 8),
+              _statBox('Schools / বিদ্যালয়', '${summaries.length}', PdfColors.grey800),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(0.8),
+              1: pw.FlexColumnWidth(4.0),
+              2: pw.FlexColumnWidth(1.2),
+              3: pw.FlexColumnWidth(2.0),
+              4: pw.FlexColumnWidth(2.0),
+              5: pw.FlexColumnWidth(2.0),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.blue800),
+                children: [
+                  for (final h in ['#', 'School / বিদ্যালয়', 'Teachers', 'Deposit', 'Withdrawal', 'Balance'])
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                      child: pw.Text(
+                        h,
+                        style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+                        textAlign: h == '#' ? pw.TextAlign.center : (h == 'School / বিদ্যালয়' ? pw.TextAlign.left : pw.TextAlign.right),
+                      ),
+                    ),
+                ],
+              ),
+              for (var i = 0; i < summaries.length; i++)
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: i.isEven ? PdfColors.white : PdfColors.grey50),
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: pw.Text('${i + 1}', style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.center),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: schoolNameCells[i],
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: pw.Text('${summaries[i].memberCount}', style: const pw.TextStyle(fontSize: 8), textAlign: pw.TextAlign.right),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: pw.Text(_tk(summaries[i].totalDeposit), style: const pw.TextStyle(fontSize: 8, color: PdfColors.teal800), textAlign: pw.TextAlign.right),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: pw.Text(_tk(summaries[i].totalWithdrawal), style: const pw.TextStyle(fontSize: 8, color: PdfColors.red700), textAlign: pw.TextAlign.right),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                      child: pw.Text(_tk(summaries[i].balance), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: summaries[i].balance >= 0 ? PdfColors.blue800 : PdfColors.red800), textAlign: pw.TextAlign.right),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 20),
+          footer,
+        ],
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await doc.save(),
+      filename: 'oikko-all-schools-financial-summary.pdf',
+    );
   }
 
   // ---------- shared pieces ----------

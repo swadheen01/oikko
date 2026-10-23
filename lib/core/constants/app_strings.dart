@@ -1,4 +1,4 @@
-/// Language-aware UI strings. Use `LocaleService` to toggle languages.
+// Language-aware UI strings. Use `LocaleService` to toggle languages.
 import '../locale/locale_service.dart';
 
 class AppStrings {
@@ -169,18 +169,58 @@ class AppStrings {
 
   // Finance / payments (admin)
   static String get addPayment =>
-      LocaleService.isEnglish ? 'Add payment' : 'টাকা জমা যোগ করুন';
+      LocaleService.isEnglish ? 'Deposit & withdrawal' : 'টাকা জমা ও উত্তোলন';
+  static String get deposit =>
+      LocaleService.isEnglish ? 'Deposit' : 'টাকা জমা';
+  static String get withdrawal =>
+      LocaleService.isEnglish ? 'Withdrawal' : 'টাকা উত্তোলন';
+  static String get byMember =>
+      LocaleService.isEnglish ? 'By member' : 'সদস্য অনুযায়ী';
+  static String get bySchool =>
+      LocaleService.isEnglish ? 'By school' : 'বিদ্যালয় অনুযায়ী';
   static String get selectMember =>
       LocaleService.isEnglish ? 'Select member' : 'সদস্য নির্বাচন করুন';
+  static String get selectSchool =>
+      LocaleService.isEnglish ? 'Select school' : 'বিদ্যালয় নির্বাচন করুন';
   static String get changeMember =>
       LocaleService.isEnglish ? 'Change' : 'পরিবর্তন করুন';
+  static String get changeSchool =>
+      LocaleService.isEnglish ? 'Change' : 'পরিবর্তন করুন';
+  static String get schoolFinance =>
+      LocaleService.isEnglish ? 'School statements' : 'বিদ্যালয়ভিত্তিক হিসাব';
+  static String get schoolStatementPdf =>
+      LocaleService.isEnglish ? 'School Statement PDF' : 'বিদ্যালয়ের হিসাবের পিডিএফ';
+  static String get allSchoolsPdf =>
+      LocaleService.isEnglish ? 'All Schools PDF' : 'সকল বিদ্যালয়ের পিডিএফ';
+  static String get donations =>
+      LocaleService.isEnglish ? 'Donations' : 'অনুদান';
+  static String get donationIncome =>
+      LocaleService.isEnglish ? 'Donation income' : 'অনুদান থেকে আয়';
+  static String get donorName =>
+      LocaleService.isEnglish ? 'Donor / Organization name' : 'দাতার নাম / প্রতিষ্ঠানের নাম';
+  static String get incomeAndExpense =>
+      LocaleService.isEnglish ? 'Income & Expense' : 'আয় ও ব্যয়';
+  static String get generalIncome =>
+      LocaleService.isEnglish ? 'Income' : 'সাধারণ আয়';
+  static String get addIncome =>
+      LocaleService.isEnglish ? 'Add income' : 'আয় যোগ করুন';
+  static String get incomeAdded =>
+      LocaleService.isEnglish ? 'Income recorded successfully' : 'আয় সফলভাবে যোগ করা হয়েছে';
   static String get amount => LocaleService.isEnglish ? 'Amount' : 'পরিমাণ';
   static String get descriptionOptional =>
       LocaleService.isEnglish ? 'Description (optional)' : 'বিবরণ (ঐচ্ছিক)';
   static String get paymentDate =>
       LocaleService.isEnglish ? 'Date' : 'তারিখ';
   static String get paymentAdded =>
-      LocaleService.isEnglish ? 'Payment added' : 'টাকা জমা যোগ করা হয়েছে';
+      LocaleService.isEnglish ? 'Saved successfully' : 'সফলভাবে সংরক্ষিত হয়েছে';
+  static String get depositAdded =>
+      LocaleService.isEnglish ? 'Deposit added' : 'টাকা জমা সফলভাবে যোগ করা হয়েছে';
+  static String get withdrawalAdded =>
+      LocaleService.isEnglish ? 'Withdrawal recorded' : 'টাকা উত্তোলন সফলভাবে লিপিবদ্ধ হয়েছে';
+  static String get totalWithdrawal =>
+      LocaleService.isEnglish ? 'TOTAL WITHDRAWAL' : 'মোট উত্তোলন';
+  static String get netBalance =>
+      LocaleService.isEnglish ? 'NET BALANCE' : 'মোট স্থিতি';
   /// The headline figure on the finance hero card: collected minus spent.
   static String get totalNetAmount =>
       LocaleService.isEnglish ? 'TOTAL NET AMOUNT' : 'মোট নিট পরিমাণ';

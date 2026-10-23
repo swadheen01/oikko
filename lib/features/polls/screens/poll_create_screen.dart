@@ -219,7 +219,7 @@ class _PollCreateScreenState extends State<PollCreateScreen> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: AppDimensions.md),
               SizedBox(
                 width: double.infinity,

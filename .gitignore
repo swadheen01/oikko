@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Presentation & Assets (Local large media)
+/Presentation/
+generate_pptx*.py

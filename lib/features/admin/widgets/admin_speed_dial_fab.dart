@@ -63,8 +63,8 @@ class _AdminSpeedDialFabState extends State<AdminSpeedDialFab> {
                 ),
                 const SizedBox(height: AppDimensions.sm),
                 _MiniAction(
-                  label: AppStrings.addExpense,
-                  icon: Icons.receipt_long_rounded,
+                  label: AppStrings.incomeAndExpense,
+                  icon: Icons.account_balance_wallet_rounded,
                   color: AppColors.danger,
                   onTap: () => _select(const AddExpenseScreen()),
                 ),

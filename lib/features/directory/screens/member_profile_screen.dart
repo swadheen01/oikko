@@ -6,7 +6,9 @@ import '../../../core/constants/firestore_paths.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/utils/phone_utils.dart';
 import '../../admin/screens/edit_member_screen.dart';
+import '../../finance/screens/add_payment_screen.dart';
 import '../../finance/screens/finance_dashboard_screen.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_gradients.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -230,6 +232,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             memberId: member.id,
                             memberName: member.name,
                             memberCode: member.memberCode,
+                            targetMember: member,
                           ),
                         ),
                       ),
@@ -292,6 +295,82 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                               Icons.arrow_forward_ios_rounded,
                               size: 14,
                               color: AppColors.accentTeal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.sm),
+                  Material(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusMd,
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AddPaymentScreen(initialMember: member),
+                        ),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimensions.md,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusMd,
+                          ),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.12,
+                                ),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.payments_rounded,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: AppDimensions.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppStrings.addPayment,
+                                    style: AppTextStyles.bodyLarge.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    LocaleService.isEnglish
+                                        ? 'Deposit or withdraw funds for this member'
+                                        : 'এই সদস্যের টাকা জমা বা উত্তোলন যুক্ত করুন',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: AppColors.primary,
                             ),
                           ],
                         ),

@@ -667,6 +667,12 @@ class _MemberRow extends StatelessWidget {
             color: AppColors.surface,
             onSelected: (value) {
               switch (value) {
+                case 'add_payment':
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AddPaymentScreen(initialMember: member),
+                    ),
+                  );
                 case 'finance':
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -676,6 +682,7 @@ class _MemberRow extends StatelessWidget {
                         memberId: member.id,
                         memberName: member.name,
                         memberCode: member.memberCode,
+                        targetMember: member,
                       ),
                     ),
                   );
@@ -690,6 +697,16 @@ class _MemberRow extends StatelessWidget {
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'add_payment',
+                child: Row(
+                  children: [
+                    Icon(Icons.payments_rounded, size: 18, color: AppColors.primary),
+                    const SizedBox(width: AppDimensions.sm),
+                    Text(AppStrings.addPayment),
+                  ],
+                ),
+              ),
               PopupMenuItem(
                 value: 'finance',
                 child: Row(

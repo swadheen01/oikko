@@ -44,6 +44,8 @@ class BalanceHeroCard extends StatelessWidget {
   /// money it is and where it came from.
   Widget _personalBody() {
     final isEn = LocaleService.isEnglish;
+    final hasWithdrawals = expense > 0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -51,13 +53,16 @@ class BalanceHeroCard extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.verified_rounded,
+              hasWithdrawals ? Icons.account_balance_rounded : Icons.verified_rounded,
               color: Colors.white.withValues(alpha: 0.9),
               size: 18,
             ),
             const SizedBox(width: 8),
             Text(
-              personalTitle ?? (isEn ? 'TOTAL YOU HAVE PAID' : 'আপনি মোট যত টাকা দিয়েছেন'),
+              personalTitle ??
+                  (hasWithdrawals
+                      ? (isEn ? 'NET BALANCE' : 'আপনার মোট স্থিতি')
+                      : (isEn ? 'TOTAL YOU HAVE PAID' : 'আপনি মোট যত টাকা দিয়েছেন')),
               style: AppTextStyles.overline.copyWith(
                 color: Colors.white.withValues(alpha: 0.85),
               ),
@@ -66,16 +71,49 @@ class BalanceHeroCard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          Formatters.currency(income),
+          Formatters.currency(hasWithdrawals ? balance : income),
           style: AppTextStyles.amountLarge,
           textAlign: TextAlign.center,
         ),
+        if (hasWithdrawals) ...[
+          const SizedBox(height: AppDimensions.md),
+          Container(
+            height: 1,
+            color: Colors.white.withValues(alpha: 0.2),
+          ),
+          const SizedBox(height: AppDimensions.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniStat(
+                  icon: Icons.arrow_downward_rounded,
+                  label: isEn ? 'Total deposit' : 'মোট জমা',
+                  value: Formatters.currency(income),
+                  color: const Color(0xFF86EFAC),
+                ),
+              ),
+              Container(width: 1, height: 32, color: Colors.white.withValues(alpha: 0.2)),
+              Expanded(
+                child: _MiniStat(
+                  icon: Icons.arrow_upward_rounded,
+                  label: isEn ? 'Total withdrawal' : 'মোট উত্তোলন',
+                  value: Formatters.currency(expense),
+                  color: const Color(0xFFFCA5A5),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: AppDimensions.md),
         Text(
           personalSubtitle ??
-              (isEn
-                  ? 'This is the total amount recorded against your name by the association. If something looks wrong, please contact the admin.'
-                  : 'সমিতির হিসাবে আপনার নামে জমা হওয়া মোট টাকার পরিমাণ এটি। কোনো গরমিল মনে হলে অ্যাডমিনের সাথে যোগাযোগ করুন।'),
+              (hasWithdrawals
+                  ? (isEn
+                      ? 'Remaining balance in your account after all deposits and withdrawals.'
+                      : 'জমা ও উত্তোলনের পর বর্তমানে আপনার হিসাবে অবশিষ্ট মোট স্থিতি এটি।')
+                  : (isEn
+                      ? 'This is the total amount recorded against your name by the association. If something looks wrong, please contact the admin.'
+                      : 'সমিতির হিসাবে আপনার নামে জমা হওয়া মোট টাকার পরিমাণ এটি। কোনো গরমিল মনে হলে অ্যাডমিনের সাথে যোগাযোগ করুন।')),
           textAlign: TextAlign.center,
           style: AppTextStyles.bodyMedium.copyWith(
             color: Colors.white.withValues(alpha: 0.82),
