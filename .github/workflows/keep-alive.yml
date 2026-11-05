@@ -2,17 +2,20 @@ name: Keep Supabase Alive
 
 on:
   schedule:
-    # Runs at 04:00 UTC every 2 days (Supabase pauses after 7 days of inactivity)
-    - cron: "0 4 */2 * *"
+    # Runs daily at 04:00 UTC (Supabase pauses after 7 days of inactivity)
+    - cron: "0 4 * * *"
+  push:
+    paths:
+      - ".github/workflows/keep-alive.yml"
   # Allows manual execution from the GitHub Actions tab
   workflow_dispatch:
 
 jobs:
   ping:
-    name: Ping Supabase Services
+    name: Ping Supabase Database & Services
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase Storage & Auth APIs
+      - name: Ping Supabase PostgreSQL Database (PostgREST) & Services
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -22,9 +25,33 @@ jobs:
           KEY="${SUPABASE_ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlrYW1wbGJxZnplZG1od2hhdWNqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyNDc4MDgsImV4cCI6MjEwMjgyMzgwOH0.vh69LDQhBG8fcK_5w3ArqmpOcyjKCi6zXs2Pt4gd-jw}"
 
           echo "Pinging Supabase at: $URL"
+          CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          # 1. Ping Storage API: queries postgres database (storage.buckets) directly
-          echo "Pinging Storage API..."
+          # 1. Real PostgreSQL DB Write Activity:
+          # Updates the keep_alive table heartbeat. Forces PostgreSQL write transaction
+          echo "1. Sending PostgreSQL DB update via PostgREST..."
+          UPDATE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH \
+            "$URL/rest/v1/keep_alive?id=eq.1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=minimal" \
+            -d "{\"updated_at\": \"$CURRENT_TIME\"}")
+
+          echo "PostgreSQL Update HTTP Status: $UPDATE_STATUS"
+
+          # 2. Real PostgreSQL DB Read Activity:
+          # SELECT query via PostgREST directly hitting the Postgres database engine
+          echo "2. Sending PostgreSQL DB query via PostgREST..."
+          READ_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
+            "$URL/rest/v1/keep_alive?select=*&limit=1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY")
+
+          echo "PostgreSQL Read HTTP Status: $READ_STATUS"
+
+          # 3. Storage API
+          echo "3. Pinging Storage API..."
           STORAGE_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: $KEY" \
             -H "Authorization: Bearer $KEY" \
@@ -32,18 +59,18 @@ jobs:
 
           echo "Storage API HTTP Status: $STORAGE_STATUS"
 
-          # 2. Ping Auth Health API
-          echo "Pinging Auth Health API..."
+          # 4. Auth Health API
+          echo "4. Pinging Auth Health API..."
           AUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "apikey: $KEY" \
             "$URL/auth/v1/health")
 
           echo "Auth API HTTP Status: $AUTH_STATUS"
 
-          # Check if at least one service responded with 200 OK
-          if [ "$STORAGE_STATUS" -eq 200 ] || [ "$AUTH_STATUS" -eq 200 ]; then
-            echo "SUCCESS: Supabase received activity ping. Inactivity timer reset!"
+          # Check if PostgreSQL database interaction was successful (200-299)
+          if ([ "$UPDATE_STATUS" -eq 200 ] || [ "$UPDATE_STATUS" -eq 204 ]) && [ "$READ_STATUS" -eq 200 ]; then
+            echo "SUCCESS: Supabase PostgreSQL database received active read/write traffic. Inactivity timer reset!"
           else
-            echo "ERROR: Unexpected responses (Storage: $STORAGE_STATUS, Auth: $AUTH_STATUS)"
+            echo "ERROR: PostgreSQL DB ping failed (Update: $UPDATE_STATUS, Read: $READ_STATUS)"
             exit 1
           fi
